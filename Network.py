@@ -125,7 +125,7 @@ class NeuralNetwork:
                 #use tqdm
                 for i in tqdm(range(iterations_per_epoch)):
 
-                    chosen = np.random.choice(idx, batch_size, replace = False)
+                    chosen = np.random.choice(idx, batch_size, replace=False)
                     Xbatch = Xtrain[chosen]
                     Ybatch = Ytrain[chosen]
 
