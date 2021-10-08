@@ -147,7 +147,7 @@ class DE:
                 yhats.append(yhat.flatten())
 
             yhats = np.array(yhats)
-            plot_function(xtest, yhats, title=title, savefig=True)
+            plot_function(xtest, yhats, title=title, savefig=False)
             # plot_function(xtest, title='Label Gaussian')
 
         print(f"Best agent is {agent} with a cost of               {np.round(self.NN_obj(agent), 30)}.")
