@@ -95,9 +95,10 @@ class DE:
     def evolution(self, num_epochs, batch_size, verbose=False):
         idx = np.arange(self.X.shape[0])
         iterations_per_epoch = self.X.shape[0] // batch_size
+        chosen1 = np.random.choice(idx, batch_size, replace=False)
 
         # evaluate the initialized population with the objective function
-        self.obj_all = [self.NN_obj(agent, idx) for agent in self.pop]
+        self.obj_all = [self.NN_obj(agent, chosen1) for agent in self.pop]
 
         # find the best agent within the initial population
         self.best_agent = self.pop[np.argmin(self.obj_all)]
@@ -125,7 +126,7 @@ class DE:
                     # update previous solution to use for next iteration
                     prev_obj = best_obj
 
-            if verbose and i % 100 == 0:
+            if verbose and i % 1000 == 0:
                 # report progress at each iteration
                 print('%d: cost= %.5f' % (i, best_obj))
 
@@ -157,7 +158,7 @@ class DE:
                 yhats.append(yhat.flatten())
 
             yhats = np.array(yhats)
-            plot_function(xtest, yhats, title=title, savefig=True)
+            plot_function(xtest, yhats, title=title, savefig=False)
             # plot_function(xtest, title='Label Gaussian')
 
         print(f"Best agent is {agent} with a total cost of \
