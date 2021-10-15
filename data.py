@@ -34,7 +34,7 @@ def create_simple_data(problem='parabola', num_data_points=30, bounds=None, nois
 
         return Xtrain, ytrain, Xtest, ytest
 
-    if problem == 'parabola':
+    elif problem == 'parabola':
         Xtrain = np.random.uniform(low=-1, high=1, size=(num_data_points, 1))
         ytrain = Xtrain ** 2
 
