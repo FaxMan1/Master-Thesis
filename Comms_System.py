@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 
 class Comms_System:
 
-    def __init__(self, calibration_seq, symbol_seq, num_samples=8):
-        self.calibration_seq = calibration_seq
+    def __init__(self, symbol_set, symbol_seq, num_samples=8):
+        self.symbol_set = symbol_set
         self.symbol_seq = symbol_seq
         self.m = num_samples
         self.h = self.rrcos()
@@ -49,8 +49,8 @@ class Comms_System:
 
     def filter_calibration(self, noise_level=None):
 
-        zero_pads = np.zeros((self.m - 1, len(self.calibration_seq)))
-        upsampled = np.vstack((self.calibration_seq, zero_pads)).T.flatten()
+        zero_pads = np.zeros((self.m - 1, len(self.symbol_set)))
+        upsampled = np.vstack((self.symbol_set, zero_pads)).T.flatten()
 
         filtered = np.convolve(upsampled, self.h)
         if noise_level is not None:
@@ -63,7 +63,7 @@ class Comms_System:
         attenuation_factors = {}
         new_values = {}
 
-        for i, s in enumerate(self.calibration_seq):
+        for i, s in enumerate(self.symbol_set):
             attenuation_factors[s] = double_filtered[self.start_sample_point + i * self.m] / filtered[self.filter_offset + i * self.m]
             new_values[s] = double_filtered[self.start_sample_point + i * self.m]
 
@@ -79,11 +79,11 @@ class Comms_System:
 
         return downsampled
 
-    def decision_making(self, downsampled, symbol_set, v=False):
+    def decision_making(self, downsampled, v=False):
         chosen_symbols = np.zeros(len(downsampled))
         for i in range(len(downsampled)):
             dists = {}
-            for s in symbol_set:
+            for s in self.symbol_set:
                 dists[s] = np.linalg.norm(downsampled[i] - s)
             chosen_symbols[i] = min(dists, key=dists.get)
             if v:
@@ -95,7 +95,9 @@ class Comms_System:
     def test_CS(self, noise_level=2):
 
         # calibrate
-        new_values, new_values_inv = self.filter_calibration()
+        #new_values, new_values_inv = self.filter_calibration()
+
+        attenuation_factor = np.max(np.convolve(self.h, self.h))
 
         # upsample symbol sequence and filter it on transmission side
         upsampled = self.upsample(v=True)
@@ -114,18 +116,18 @@ class Comms_System:
         downsampled = self.downsample(Rx)
 
         # Decision-making using new_values
-        decisions = self.decision_making(downsampled, new_values.values(), False)
+        decisions = self.decision_making(downsampled/attenuation_factor, False)
 
         return decisions
 
     def evaluate(self, decisions):
 
-        decoded = [self.new_values_inv[dec] for dec in decisions]
-        num_errors = np.sum(np.array(decoded) != np.array(self.symbol_seq))
-        error_rate = num_errors / len(self.symbol_seq) * 100
-        print(decoded[:10], '...')
+        #decoded = [self.new_values_inv[dec] for dec in decisions]
+        num_errors = np.sum(np.array(decisions) != np.array(self.symbol_seq))
+        error_rate = num_errors / len(self.symbol_seq)
+        print(decisions[:10], '...')
         print(self.symbol_seq[:10], '...')
-        print('{}% error rate'.format(error_rate.round(2)))
+        print('{}% error rate'.format(error_rate.round(4)*100))
 
         return num_errors, error_rate
 
