@@ -4,14 +4,14 @@ import matplotlib.pyplot as plt
 
 class Comms_System:
 
-    def __init__(self, symbol_set, symbol_seq, num_samples=8):
+    def __init__(self, symbol_set, symbol_seq, num_samples=8, beta=0.35):
         self.symbol_set = symbol_set
         self.symbol_seq = symbol_seq
         self.m = num_samples
-        self.h = self.rrcos()
+        self.h = self.rrcos(beta=beta)
         self.filter_offset = len(self.h) // 2
         self.start_sample_point = self.filter_offset * 2
-        self.new_values, self.new_values_inv = self.filter_calibration()
+        # self.new_values, self.new_values_inv = self.filter_calibration()
         pass
 
     def upsample(self, v=False):
@@ -27,11 +27,12 @@ class Comms_System:
 
         return upsampled
 
-    def rrcos(self, beta=0.35, v=False):
+    def rrcos(self, beta, v=False):
 
         Ts = self.m  # Assume sample rate is 1 Hz, so sample period is 1, so *symbol* period is 8 # Ts is symbolperiod
-        t = np.arange(-4 * Ts + 1, 4 * Ts)  # remember it's not inclusive of final number
-        h = np.sinc(t / Ts) * np.cos(np.pi * beta * t / Ts) / (1 - (2 * beta * t / Ts) ** 2)
+        t = np.arange(-4 * Ts, 4 * Ts+1)  # remember it's not inclusive of final number
+        # h = np.sinc(t / Ts) * np.cos(np.pi * beta * t / Ts) / (1 - (2 * beta * t / Ts) ** 2)
+        h = (np.cos((1+beta) * np.pi *t/Ts) + np.pi * (1-beta)/4/beta*np.sinc((1-beta)*t/Ts))/(1-(4*beta*t/Ts)**2)
         if v:
             plt.figure(figsize=(13, 8))
             plt.plot(t, h)
@@ -46,31 +47,6 @@ class Comms_System:
         plt.plot(filtered_signal, '.-')
         plt.grid(True)
         plt.show()
-
-    def filter_calibration(self, noise_level=None):
-
-        zero_pads = np.zeros((self.m - 1, len(self.symbol_set)))
-        upsampled = np.vstack((self.symbol_set, zero_pads)).T.flatten()
-
-        filtered = np.convolve(upsampled, self.h)
-        if noise_level is not None:
-            filtered = filtered + np.random.normal(0.0, noise_level, filtered.shape)  # add gaussian noise
-        double_filtered = np.convolve(filtered, self.h)
-
-        #filter_offset = len(self.h) // 2
-        #start_sample_point = filter_offset * 2
-
-        attenuation_factors = {}
-        new_values = {}
-
-        for i, s in enumerate(self.symbol_set):
-            attenuation_factors[s] = double_filtered[self.start_sample_point + i * self.m] / filtered[self.filter_offset + i * self.m]
-            new_values[s] = double_filtered[self.start_sample_point + i * self.m]
-
-        new_values_inv = {v: k for k, v in new_values.items()}
-        attenuation_factors_inv = {v: k for k, v in attenuation_factors.items()}
-
-        return new_values, new_values_inv
 
     def downsample(self, Rx):
         downsampled = np.zeros(len(self.symbol_seq))
@@ -91,26 +67,27 @@ class Comms_System:
 
         return chosen_symbols
 
-
-    def test_CS(self, noise_level=2):
+    def test_CS(self, noise_level=2, v=False):
 
         # calibrate
-        #new_values, new_values_inv = self.filter_calibration()
-
         attenuation_factor = np.max(np.convolve(self.h, self.h))
 
         # upsample symbol sequence and filter it on transmission side
-        upsampled = self.upsample(v=True)
+        upsampled = self.upsample(v=v)
         Tx = np.convolve(upsampled, self.h)
-        self.plot_filtered(Tx)
+
+        if v:
+            self.plot_filtered(Tx)
 
         # Transmit the filtered signal (i.e. add noise)
         Tx = Tx + np.random.normal(0.0, noise_level, Tx.shape)  # add gaussian noise
-        self.plot_filtered(Tx, title='Filtered Signal with Noise')
 
         # Filter on receiver side
         Rx = np.convolve(Tx, self.h)
-        self.plot_filtered(Rx, title='Double Filtered')
+
+        if v:
+            self.plot_filtered(Tx, title='Filtered Signal with Noise')
+            self.plot_filtered(Rx, title='Double Filtered')
 
         # Downsample the signal on the receiver side
         downsampled = self.downsample(Rx)
@@ -122,12 +99,9 @@ class Comms_System:
 
     def evaluate(self, decisions):
 
-        #decoded = [self.new_values_inv[dec] for dec in decisions]
         num_errors = np.sum(np.array(decisions) != np.array(self.symbol_seq))
         error_rate = num_errors / len(self.symbol_seq)
-        print(decisions[:10], '...')
-        print(self.symbol_seq[:10], '...')
-        print('{}% error rate'.format(error_rate.round(4)*100))
+        # print('{}% error rate'.format(np.round(error_rate*100, 4)))
 
         return num_errors, error_rate
 
