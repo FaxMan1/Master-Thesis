@@ -7,7 +7,7 @@ import copy
 
 class DE:
 
-    def __init__(self, objective_function, sizes, X, y, start_agent=None, pop_size=50, F=0.5, cr=0.5):
+    def __init__(self, objective_function, sizes, X, y, start_agent=None, pop_size=50, F=0.5, cr=0.5, softmax=False):
         self.obj = objective_function
         self.sizes = sizes
         self.X = X
@@ -15,7 +15,7 @@ class DE:
         self.N = pop_size
         self.F = F
         self.cr = cr
-        self.pop = np.array([NeuralNetwork(sizes) for i in range(self.N)])
+        self.pop = np.array([NeuralNetwork(sizes, softmax=softmax) for i in range(self.N)])
         if start_agent is not None:
             self.pop[0] = start_agent
         self.testNN = NeuralNetwork(sizes)
@@ -44,8 +44,7 @@ class DE:
 
     def mutation(self, nets):
 
-        for i in range(
-                len(nets[0].weights)):  # iterate over all weights. t[0].weights, t[1].weights etc are same length
+        for i in range(len(nets[0].weights)):  # iterate over all weights. t[0].weights, t[1].weights... are same len
             self.testNN.weights[i] = nets[0].weights[i] + self.F * (nets[1].weights[i] - nets[2].weights[i])
 
         # biases
@@ -74,7 +73,7 @@ class DE:
 
         pass
 
-    def evolution(self, num_epochs, verbose=False):
+    def evolution(self, num_epochs, verbose=False, print_epoch=1000):
         # evaluate the initialized population with the objective function
         obj_all = [self.NN_obj(agent) for agent in self.pop]
 
@@ -115,7 +114,7 @@ class DE:
                 # update previous solution to use for next iteration
                 prev_obj = best_obj
 
-            if verbose and i % 1000 == 0:
+            if verbose and i % print_epoch == 0:
                 # report progress at each iteration
                 print('%d: cost= %.5f' % (i, best_obj))
 

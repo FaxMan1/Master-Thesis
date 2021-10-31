@@ -7,7 +7,7 @@ import copy
 
 class DE:
 
-    def __init__(self, objective_function, sizes, X, y, start_agent=None, pop_size=50, F=0.5, cr=0.5):
+    def __init__(self, objective_function, sizes, X, y, start_agent=None, pop_size=50, F=0.5, cr=0.5, softmax=False):
         self.obj = objective_function
         self.sizes = sizes
         self.X = X
@@ -15,10 +15,10 @@ class DE:
         self.N = pop_size
         self.F = F
         self.cr = cr
-        self.pop = np.array([NeuralNetwork(sizes) for i in range(self.N)])
+        self.pop = np.array([NeuralNetwork(sizes, softmax=softmax) for i in range(self.N)])
         if start_agent is not None:
             self.pop[0] = start_agent
-        self.testNN = NeuralNetwork(sizes)
+        self.testNN = NeuralNetwork(sizes, softmax=softmax)
 
         pass
 
@@ -92,7 +92,7 @@ class DE:
             self.pop[j] = copy.deepcopy(self.testNN)
             self.obj_all[j] = obj_u
 
-    def evolution(self, num_epochs, batch_size, verbose=False):
+    def evolution(self, num_epochs, batch_size, verbose=False, print_epoch=1000):
         idx = np.arange(self.X.shape[0])
         iterations_per_epoch = self.X.shape[0] // batch_size
         chosen1 = np.random.choice(idx, batch_size, replace=False)
@@ -126,7 +126,7 @@ class DE:
                     # update previous solution to use for next iteration
                     prev_obj = best_obj
 
-            if verbose and i % 1000 == 0:
+            if verbose and i % print_epoch == 0:
                 # report progress at each iteration
                 print('%d: cost= %.5f' % (i, best_obj))
 
