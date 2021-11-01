@@ -85,6 +85,23 @@ class Comms_System:
         return chosen_symbols
 
 
+    def transmission(self, mode='euclidean', noise_level=2):
+
+        gain_factor = np.max(np.convolve(self.h, self.h))
+        upsampled = self.upsample()
+        Tx = np.convolve(upsampled, self.h)
+        Tx = Tx + np.random.normal(0.0, noise_level, Tx.shape)  # add gaussian noise
+        Rx = np.convolve(Tx, self.h)
+        downsampled = self.downsample(Rx)/gain_factor
+
+        if mode == 'euclidean':
+            decisions = self.decision_making(downsampled, False)
+        elif mode == 'ML':
+            decisions = ML_decision_making(downsampled, self.symbol_set)
+
+        return decisions
+
+
     def test_CS(self, noise_level=2, v=False):
 
         # calibrate
@@ -93,28 +110,26 @@ class Comms_System:
         # upsample symbol sequence and filter it on transmission side
         upsampled = self.upsample(v=v)
         Tx = np.convolve(upsampled, self.h)
-
         if v:
             self.plot_filtered(Tx)
 
         # Transmit the filtered signal (i.e. add noise)
         Tx = Tx + np.random.normal(0.0, noise_level, Tx.shape)  # add gaussian noise
-
         # Filter on receiver side
         Rx = np.convolve(Tx, self.h)
-
         if v:
             self.plot_filtered(Tx, title='Filtered Signal with Noise')
             self.plot_filtered(Rx, title='Received Signal')
 
         # Downsample the signal on the receiver side
-        downsampled = self.downsample(Rx)
+        downsampled = self.downsample(Rx)/gain_factor
 
         # Decision-making using new_values
-        decisions = self.decision_making(downsampled/gain_factor, False)
-        NN_decisions = ML_decision_making(downsampled/gain_factor, self.symbol_set)
+        decisions = self.decision_making(downsampled, False)
+        NN_decisions = ML_decision_making(downsampled, self.symbol_set)
 
-        return decisions, NN_decisions
+        return decisions, NN_decisions, downsampled
+
 
     def evaluate(self, decisions):
 
