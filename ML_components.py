@@ -17,16 +17,10 @@ def load_params(weight_file, bias_file):
 
 def ML_decision_making(downsampled, classes, mode='load'):
 
-
-    if mode == 'load':
-        weights, biases, sizes = load_params('../SavedWeights/decision_making_weights_1.11_10.9.npz',
-                                             '../SavedWeights/decision_making_biases_1.11_10.9.npz')
-        best_agent = NeuralNetwork(sizes, startweights=weights, startbiases=biases,
-                                   type='classification', afunc='relu')
-
-    # elif mode == 'train':
-        # downsampled, y, classes = generate_train_data()
-        # best_agent = train(downsampled, y, classes)
+    weights, biases, sizes = load_params('../SavedWeights/best_decision_making_weights2.npz',
+                                         '../SavedWeights/best_decision_making_biases2.npz')
+    best_agent = NeuralNetwork(sizes, startweights=weights, startbiases=biases,
+                               type='classification', afunc='relu')
 
     X = np.array(downsampled, ndmin=2).T
     classes = np.array(classes)
