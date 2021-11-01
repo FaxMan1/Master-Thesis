@@ -12,18 +12,22 @@ from sklearn.metrics import confusion_matrix
 # # The Framework
 class NeuralNetwork:
     
-    def __init__(self, sizes, learningrate=0.01, afunc='tanh', softmax=False, startweights=None, startbiases=None):
+    def __init__(self, sizes, lr=0.01, type='classification', afunc='tanh', startweights=None, startbiases=None):
     
         self.num_layers = len(sizes)
         self.sizes = sizes
         self.biases = [np.random.randn(1,y) for y in sizes[1:]]                     # List of bias-lists.
         self.weights = [np.random.randn(x,y)/np.sqrt(x) for x,y in zip(sizes[:-1], sizes[1:])] # List of weight-matrices
-        #self.biases = [np.random.uniform(bounds[0], bounds[1], (1,y)) for y in sizes[1:]]  
-        #self.weights = [np.random.uniform(bounds[0], bounds[1], (x, y)) for x,y in zip(sizes[:-1], sizes[1:])]
-        self.lr = learningrate
-        self.afunction = ActivationFunctions.tanh
-        self.derivfunction = ActivationFunctions.tanhPrime
-        self.softmax = softmax
+        # self.biases = [np.random.uniform(bounds[0], bounds[1], (1,y)) for y in sizes[1:]]
+        # self.weights = [np.random.uniform(bounds[0], bounds[1], (x, y)) for x,y in zip(sizes[:-1], sizes[1:])]
+        self.lr = lr
+        self.type = type
+        if afunc == 'tanh':
+            self.afunction = ActivationFunctions.tanh
+            self.derivfunction = ActivationFunctions.tanhPrime
+        elif afunc == 'relu':
+            self.afunction = ActivationFunctions.ReLu
+            self.afunction = ActivationFunctions.ReLuPrime
         
         # It is important that startweights and self.weights have the same dimensions!!
         if (startweights != None):
@@ -48,15 +52,15 @@ class NeuralNetwork:
             self.a = self.afunction(self.z)
             self.zs.append(self.z)
             self.activations.append(self.a)
-            
 
-        if self.softmax:
+        if self.type == 'classification':
             # softmax for classification
             return ActivationFunctions.stablesoftmax(self.z)
-        else:
+
+        elif self.type == 'regression':
             # Linear output layer
             return self.z
-    
+
     
     def train(self, X, y):
         

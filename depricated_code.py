@@ -22,3 +22,52 @@ def filter_calibration(self, noise_level=None):
     attenuation_factors_inv = {v: k for k, v in attenuation_factors.items()}
 
     return new_values, new_values_inv
+
+# Evolution Without mini-batch
+
+def evolution(self, num_epochs, verbose=False, print_epoch=1000):
+    # evaluate the initialized population with the objective function
+    obj_all = [self.NN_obj(agent) for agent in self.pop]
+
+    # find the best agent within the initial population
+    self.best_agent = self.pop[np.argmin(obj_all)]
+    # self.initial_worst_agent = self.pop[np.argmax(obj_all)].copy()
+    best_obj = min(obj_all)
+    prev_obj = best_obj
+    self.best_objs = np.zeros(num_epochs + 1)
+    self.best_objs[0] = best_obj
+
+    for i in range(num_epochs):
+        for j in range(self.N):
+
+            # Random sampling from the set of all agents exluding the current one, j
+            x = self.pop[j]
+            a, b, c = self.pop[np.random.choice(np.delete(np.arange(self.N), j), 3, replace=False)]
+
+            # Mutation
+            self.mutation([a, b, c])
+
+            # Crossover
+            self.crossover(x)
+
+            # Selection
+            obj_u = self.NN_obj(self.testNN)
+            if obj_u < self.NN_obj(x):
+                self.pop[j] = copy.deepcopy(self.testNN)
+                obj_all[j] = obj_u
+
+        # update the current best objective function value
+        best_obj = min(obj_all)
+        self.best_objs[i + 1] = best_obj
+
+        if best_obj < prev_obj:
+            # update best agent
+            self.best_agent = self.pop[np.argmin(obj_all)]
+            # update previous solution to use for next iteration
+            prev_obj = best_obj
+
+        if verbose and i % print_epoch == 0:
+            # report progress at each iteration
+            print('%d: cost= %.5f' % (i, best_obj))
+
+    return self.best_agent
