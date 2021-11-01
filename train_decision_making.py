@@ -5,10 +5,9 @@ from objective_functions import MSE
 
 # %%
 
-def generate_train_data():
+def generate_train_data(num_symbols):
 
     symbol_set = [3, 1, -1, -3]  # all symbols that we use
-    num_symbols = 1000
     symbol_seq = np.random.choice(symbol_set, num_symbols, replace=True)
     m = 8
     CS = Comms_System(symbol_set=symbol_set, symbol_seq=symbol_seq, num_samples=m)
@@ -20,9 +19,9 @@ def generate_train_data():
 
 # %%
 
-def train_DM_model(sizes=[1,8,4], epochs=501, splitlen=0.75, verbose=True, saveweights=False):
+def train_DM_model(sizes=[1,8,4], epochs=501, num_symbols=1000, splitlen=0.75, verbose=True, saveweights=False):
 
-    X, y, classes = generate_train_data()
+    X, y, classes = generate_train_data(num_symbols)
     num_classes = len(classes)
     sizes[-1] = num_classes
 
