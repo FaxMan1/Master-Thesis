@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from commpy.filters import rrcosfilter
+from ML_components import ML_decision_making
 
 
 class Comms_System:
@@ -110,8 +111,9 @@ class Comms_System:
 
         # Decision-making using new_values
         decisions = self.decision_making(downsampled/gain_factor, False)
+        NN_decisions = ML_decision_making(downsampled/gain_factor, self.symbol_set)
 
-        return decisions
+        return decisions, NN_decisions
 
     def evaluate(self, decisions):
 
