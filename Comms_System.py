@@ -84,6 +84,7 @@ class Comms_System:
 
         return chosen_symbols
 
+
     def test_CS(self, noise_level=2, v=False):
 
         # calibrate
