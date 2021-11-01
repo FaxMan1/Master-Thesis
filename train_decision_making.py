@@ -7,37 +7,22 @@ from objective_functions import MSE
 
 def generate_train_data():
 
-    symbol_set = [3, 1, -1, -3] # all symbols that we use
+    symbol_set = [3, 1, -1, -3]  # all symbols that we use
     num_symbols = 1000
     symbol_seq = np.random.choice(symbol_set, num_symbols, replace=True)
     m = 8
-    CS = Comms_System(symbol_set=symbol_set, symbol_seq=symbol_seq, num_samples=m, beta=0.35)
+    CS = Comms_System(symbol_set=symbol_set, symbol_seq=symbol_seq, num_samples=m)
 
-    # calibrate
-    gain_factor = np.max(np.convolve(CS.h, CS.h))
+    # Automatic test
+    _, _, downsampled = CS.test_CS(noise_level=1, v=False)
 
-    # upsample symbol sequence and filter it on transmission side
-    upsampled = CS.upsample(v=False)
-    Tx = np.convolve(upsampled, CS.h)
-
-    # Transmit the filtered signal (i.e. add noise)
-    Tx = Tx + np.random.normal(0.0, 1, Tx.shape)  # add gaussian noise
-
-    # Filter on receiver side
-    Rx = np.convolve(Tx, CS.h)
-
-    # Downsample the signal on the receiver side
-    downsampled = CS.downsample(Rx)
-
-    return downsampled, symbol_seq, symbol_set
+    return np.array(downsampled, ndmin=2).T, symbol_seq, np.array(symbol_set)
 
 # %%
 
-def train(X, y, classes, sizes=[1, 8, 4], epochs=501, splitlen=0.75, verbose=True, saveweights=False):
+def train_DM_model(sizes=[1,8,4], epochs=501, splitlen=0.75, verbose=True, saveweights=False):
 
-    X = np.array(X, ndmin=2).T
-
-    classes = np.array(classes)
+    X, y, classes = generate_train_data()
     num_classes = len(classes)
     sizes[-1] = num_classes
 
@@ -76,8 +61,6 @@ def train(X, y, classes, sizes=[1, 8, 4], epochs=501, splitlen=0.75, verbose=Tru
     if saveweights:
         D.save_params('decision_making_weights', 'decision_making_biases')
 
-    return best_agent
-
-# %%
+    return D
 
 
