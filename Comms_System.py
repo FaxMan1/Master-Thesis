@@ -74,6 +74,7 @@ class Comms_System:
 
     def decision_making(self, downsampled, v=False):
         chosen_symbols = np.zeros(len(downsampled))
+        distslist = []
         for i in range(len(downsampled)):
             dists = {}
             for s in self.symbol_set:
@@ -81,8 +82,9 @@ class Comms_System:
             chosen_symbols[i] = min(dists, key=dists.get)
             if v:
                 print(dists)
+            distslist.append(dists)
 
-        return chosen_symbols
+        return chosen_symbols, distslist
 
 
     def transmission(self, mode='euclidean', noise_level=2):
@@ -125,10 +127,11 @@ class Comms_System:
         downsampled = self.downsample(Rx)/gain_factor
 
         # Decision-making using new_values
-        decisions = self.decision_making(downsampled, False)
-        NN_decisions = ML_decision_making(downsampled, self.symbol_set)
+        decisions, _ = self.decision_making(downsampled, False)
+        NN_decisions_CE = ML_decision_making(downsampled, self.symbol_set, type='CE')
+        NN_decisions_MSE = ML_decision_making(downsampled, self.symbol_set, type='MSE')
 
-        return decisions, NN_decisions, downsampled
+        return decisions, NN_decisions_CE, NN_decisions_MSE, downsampled
 
 
     def evaluate(self, decisions):

@@ -32,3 +32,10 @@ def gaussian_2d_old(theta, mu=[0, 0], sigma=[0.25, 0.25]):
 def gauss_2d(X, mu=[0, 0], sigma=[0.25, 0.25]):
     var = multivariate_normal(mean=mu, cov=np.diag(sigma))
     return var.pdf(X)
+
+
+def crossEntropy(theta, epsilon=1e-15):
+    y, yhat = theta
+    a = yhat #NN.feedforward(X)
+    # Calculate CrossEntropy error
+    return np.mean(np.nan_to_num(-y * np.log(a + epsilon) - (1 - y) * np.log((1 - a) + epsilon)))

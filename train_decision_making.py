@@ -2,6 +2,7 @@ from Comms_System import Comms_System
 import numpy as np
 from DE_minibatch import DE
 from objective_functions import MSE
+from objective_functions import crossEntropy
 
 # %%
 
@@ -13,7 +14,7 @@ def generate_train_data(num_symbols):
     CS = Comms_System(symbol_set=symbol_set, symbol_seq=symbol_seq, num_samples=m)
 
     # Automatic test
-    _, _, downsampled = CS.test_CS(noise_level=1, v=False)
+    _, _,_, downsampled = CS.test_CS(noise_level=1, v=False)
 
     return np.array(downsampled, ndmin=2).T, symbol_seq, np.array(symbol_set)
 
@@ -39,7 +40,7 @@ def train_DM_model(sizes=[1,8,4], epochs=501, num_symbols=1000, splitlen=0.75, v
     Xtrain, ytrain = X[:splitlen], y[:splitlen]
     Xtest, ytest = X[splitlen:], y[splitlen:]
 
-    D = DE(objective_function=MSE, sizes=sizes, pop_size=50, F=0.55, cr=0.85,
+    D = DE(objective_function=crossEntropy, sizes=sizes, pop_size=50, F=0.55, cr=0.85,
            X=Xtrain, y=ytrain, type='classification', afunc='relu')
 
     best_agent = D.evolution(num_epochs=epochs, batch_size=Xtrain.shape[0], verbose=verbose, print_epoch=100)

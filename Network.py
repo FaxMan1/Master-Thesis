@@ -27,7 +27,11 @@ class NeuralNetwork:
             self.derivfunction = ActivationFunctions.tanhPrime
         elif afunc == 'relu':
             self.afunction = ActivationFunctions.ReLu
-            self.afunction = ActivationFunctions.ReLuPrime
+            self.derivfunction = ActivationFunctions.ReLuPrime
+        if type == 'classification':
+            self.derivCost = CostFunctions.derivCE
+        elif type == 'regression':
+            self.derivCost = CostFunctions.derivMSE
         
         # It is important that startweights and self.weights have the same dimensions!!
         if (startweights != None):
@@ -75,7 +79,7 @@ class NeuralNetwork:
         ##### Backpropagation ####
         
         # Output Layer
-        delta = CostFunctions.derivCE(self.yhat, y)
+        delta = self.derivCost(self.yhat, y)
         dJdW = np.dot(self.activations[n-1].T, delta)
         dJdB = np.sum(delta, axis = 0)
         changesw.insert(0, dJdW)
