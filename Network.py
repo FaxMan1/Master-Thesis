@@ -29,8 +29,10 @@ class NeuralNetwork:
             self.afunction = ActivationFunctions.ReLu
             self.derivfunction = ActivationFunctions.ReLuPrime
         if type == 'classification':
+            self.cost = CostFunctions.crossEntropy
             self.derivCost = CostFunctions.derivCE
         elif type == 'regression':
+            self.cost = CostFunctions.MSE
             self.derivCost = CostFunctions.derivMSE
         
         # It is important that startweights and self.weights have the same dimensions!!
@@ -143,7 +145,7 @@ class NeuralNetwork:
 
                     self.train(Xbatch, Ybatch)
                     if cost:
-                        testcosts[i] = self.MSE(Xtest, Ytest)
+                        testcosts[i] = self.cost(Xtest, Ytest)
                     elif acc:
                         testaccs[i] = accuracy(Xtest, Ytest)
             else:
@@ -161,7 +163,7 @@ class NeuralNetwork:
 
                     self.train(Xbatch, Ybatch)
                     if cost:
-                        testcosts[i] = self.MSE(Xtest, Ytest)
+                        testcosts[i] = self.cost(self, Xtest, Ytest)
                     elif acc:
                         testaccs[i] = accuracy(Xtest, Ytest)
 
@@ -194,7 +196,8 @@ class CostFunctions:
     
         # Calculate MSE
         return np.mean((y-yhat)**2) # * 0.5
-    
+
+    @staticmethod
     def RMSE(X, y):
         
         yhat = NN.feedforward(X)
@@ -208,7 +211,7 @@ class CostFunctions:
 
 
     @staticmethod
-    def crossEntropy(X, y, epsilon = 1e-15):
+    def crossEntropy(NN, X, y, epsilon = 1e-15):
         
         #Forward Propagate
         a = NN.feedforward(X)
@@ -276,9 +279,14 @@ class ActivationFunctions:
     def stablesoftmax(x):
     
         mx = np.max(x, axis=-1, keepdims=True)
-        numerator = np.exp(x - mx).round(3)
+        numerator = np.exp(x - mx) #.round(3)
         denominator = np.sum(numerator, axis=-1, keepdims=True)
         return numerator/denominator
+
+    '''def stablesoftmax2(xs, axis=-1):
+        xs = xs - np.max(xs, axis=axis, keepdims=True)
+        xs_exp = np.exp(xs)
+        return xs_exp / xs_exp.sum(axis=axis, keepdims=True)'''
     
     
     @staticmethod
