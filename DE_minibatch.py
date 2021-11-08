@@ -75,25 +75,26 @@ class DE:
 
         pass
 
-    def evolve(self, j, chosen):
+    def evolve(self, chosen):
 
-        # Random sampling from the set of all agents exluding the current one, j
-        x = self.pop[j]
-        a, b, c = self.pop[np.random.choice(np.delete(np.arange(self.N), j), 3, replace=False)]
+        for j in range(self.N):
+            # Random sampling from the set of all agents exluding the current one, j
+            x = self.pop[j]
+            a, b, c = self.pop[np.random.choice(np.delete(np.arange(self.N), j), 3, replace=False)]
 
-        # Mutation
-        self.mutation([a, b, c])
+            # Mutation
+            self.mutation([a, b, c])
 
-        # Crossover
-        self.crossover(x)
+            # Crossover
+            self.crossover(x)
 
-        # Selection
-        obj_u = self.NN_obj(self.testNN, chosen)
-        if obj_u < self.NN_obj(x, chosen):
-            self.pop[j] = copy.deepcopy(self.testNN)
-            self.obj_all[j] = obj_u
+            # Selection
+            obj_u = self.NN_obj(self.testNN, chosen)
+            if obj_u < self.NN_obj(x, chosen):
+                self.pop[j] = copy.deepcopy(self.testNN)
+                self.obj_all[j] = obj_u
 
-    def evolution(self, num_epochs, batch_size, verbose=False, print_epoch=1000):
+    def evolution(self, num_epochs, batch_size, eval_on_full=False, verbose=False, print_epoch=1000):
         idx = np.arange(self.X.shape[0])
         iterations_per_epoch = self.X.shape[0] // batch_size
         chosen1 = np.random.choice(idx, batch_size, replace=False)
@@ -114,12 +115,16 @@ class DE:
             # iterate through all agents in the population
             for k in range(iterations_per_epoch):
                 chosen = np.random.choice(idx, batch_size, replace=False)
-                for j in range(self.N):
-                    self.evolve(j, chosen)  # evolve the agent
+                self.evolve(chosen)  # evolve all agents in the population
 
                 # after all agents in the minibatch have been evolved, update the current best objective function value
-                best_obj = min(self.obj_all)
-                self.best_objs[i + 1] = best_obj
+                if eval_on_full:
+                    obj_all_full = [self.NN_obj(agent, idx) for agent in self.pop]
+                    best_obj = min(obj_all_full)
+                    self.best_objs[i + 1] = best_obj
+                else:
+                    best_obj = min(self.obj_all)
+                    self.best_objs[i + 1] = best_obj
 
                 if best_obj < prev_obj:
                     # update best agent
@@ -130,6 +135,7 @@ class DE:
             if verbose and i % print_epoch == 0:
                 # report progress at each iteration
                 print('%d: cost= %.5f' % (i, best_obj))
+                # print(np.round(self.NN_obj(self.best_agent), 5))
 
         return self.best_agent
 
@@ -163,9 +169,9 @@ class DE:
             # plot_function(xtest, title='Label Gaussian')
 
         print(f"Best agent is {agent} with a train cost of \ "
-              f"{np.round(self.NN_obj(agent, np.arange(self.X.shape[0])), 5)}.")
+              f"{self.NN_obj(agent, np.arange(self.X.shape[0]))}.")
 
-        print(f"And a test cost of {np.round(self.obj([agent.feedforward(xtest), ytest]), 5)}")
+        print(f"And a test cost of {self.obj([ytest, agent.feedforward(xtest)])}")
 
 
 
