@@ -15,22 +15,33 @@ def load_params(weight_file, bias_file):
     return weights, biases, sizes
 
 
-def ML_decision_making(downsampled, classes, mode='load', type='CE'):
+def ML_downsampling(blocks, classes, model=None):
 
-    weights, biases, sizes = load_params('../SavedWeights/decision_making_weights_CE.npz',
-                                         '../SavedWeights/decision_making_biases_CE.npz')
-    weights2, biases2, sizes2 = load_params('../SavedWeights/decision_making_weights_MSE.npz',
-                                         '../SavedWeights/decision_making_biases_MSE.npz')
-    best_agent_CE = NeuralNetwork(sizes, startweights=weights, startbiases=biases,
-                               type='classification', afunc='relu')
-    best_agent_MSE = NeuralNetwork(sizes2, startweights=weights2, startbiases=biases2,
-                                  type='classification', afunc='relu')
+   X = np.array(blocks)
+   classes = np.array(classes)
+   w, b, sizes = load_params('../SavedWeights/block_decision_making_weights.npz',
+                             '../SavedWeights/block_decision_making_biases.npz')
+   best_agent = NeuralNetwork(sizes, startweights=w, startbiases=b,
+                              type='classification', afunc='relu')
+
+   return classes[best_agent.feedforward(X).argmax(axis=1)]
+
+
+
+
+def ML_decision_making(downsampled, classes, model=None,
+                       w_path='../SavedWeights/decision_making_weights.npz',
+                       b_path='../SavedWeights/decision_making_biases.npz'):
 
     X = np.array(downsampled, ndmin=2).T
     classes = np.array(classes)
-    if type == 'CE':
-        NN_decisions = classes[best_agent_CE.feedforward(X).argmax(axis=1)]
-    elif type == 'MSE':
-        NN_decisions = classes[best_agent_MSE.feedforward(X).argmax(axis=1)]
+
+    if model is not None:
+        NN_decisions = classes[model.feedforward(X).argmax(axis=1)]
+    else:
+        weights, biases, sizes = load_params(w_path, b_path)
+        best_agent = NeuralNetwork(sizes, startweights=weights, startbiases=biases,
+                                   type='classification', afunc='relu')
+        NN_decisions = classes[best_agent.feedforward(X).argmax(axis=1)]
 
     return NN_decisions

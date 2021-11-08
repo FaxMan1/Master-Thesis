@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from commpy.filters import rrcosfilter
 from ML_components import ML_decision_making
+from ML_components import ML_downsampling
 
 
 class Comms_System:
@@ -72,9 +73,16 @@ class Comms_System:
 
         return downsampled
 
+    def get_periods(self, Rx):
+        blocks = []
+        start = self.start_sample_point - (self.m//2)
+
+        for i in range(len(self.symbol_seq)):
+            blocks.append(Rx[start+i*self.m: start + (i+1)*self.m])
+        return blocks
+
     def decision_making(self, downsampled, v=False):
         chosen_symbols = np.zeros(len(downsampled))
-        distslist = []
         for i in range(len(downsampled)):
             dists = {}
             for s in self.symbol_set:
@@ -82,9 +90,8 @@ class Comms_System:
             chosen_symbols[i] = min(dists, key=dists.get)
             if v:
                 print(dists)
-            distslist.append(dists)
 
-        return chosen_symbols, distslist
+        return chosen_symbols
 
 
     def transmission(self, mode='euclidean', noise_level=2):
@@ -103,8 +110,7 @@ class Comms_System:
 
         return decisions
 
-
-    def test_CS(self, noise_level=2, v=False):
+    def test_CS(self, noise_level=2, model=None, v=False, mode='downsampled'):
 
         # calibrate
         gain_factor = np.max(np.convolve(self.h, self.h))
@@ -119,6 +125,8 @@ class Comms_System:
         Tx = Tx + np.random.normal(0.0, noise_level, Tx.shape)  # add gaussian noise
         # Filter on receiver side
         Rx = np.convolve(Tx, self.h)
+        blocks = self.get_periods(Rx/gain_factor)
+        block_decisions = ML_downsampling(blocks, self.symbol_set)
         if v:
             self.plot_filtered(Tx, title='Filtered Signal with Noise')
             self.plot_filtered(Rx, title='Received Signal')
@@ -126,13 +134,11 @@ class Comms_System:
         # Downsample the signal on the receiver side
         downsampled = self.downsample(Rx)/gain_factor
 
-        # Decision-making using new_values
-        decisions, _ = self.decision_making(downsampled, False)
-        NN_decisions_CE = ML_decision_making(downsampled, self.symbol_set, type='CE')
-        NN_decisions_MSE = ML_decision_making(downsampled, self.symbol_set, type='MSE')
+        # Decision-making downsampled values
+        decisions = self.decision_making(downsampled, False)
+        NN_decisions = ML_decision_making(downsampled, self.symbol_set, model=model)
 
-        return decisions, NN_decisions_CE, NN_decisions_MSE, downsampled
-
+        return decisions, NN_decisions, downsampled, block_decisions
 
     def evaluate(self, decisions):
 
