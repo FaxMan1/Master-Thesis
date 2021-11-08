@@ -8,7 +8,7 @@ import copy
 class DE:
 
     def __init__(self, objective_function, sizes, X, y, start_agent=None, pop_size=50,
-                 F=0.5, cr=0.5, type='classification', afunc='tanh'):
+                 F=0.5, cr=0.5, type='classification', afunc='tanh', softmax=True):
         self.obj = objective_function
         self.sizes = sizes
         self.X = X
@@ -16,10 +16,10 @@ class DE:
         self.N = pop_size
         self.F = F
         self.cr = cr
-        self.pop = np.array([NeuralNetwork(sizes, type=type, afunc=afunc) for i in range(self.N)])
+        self.pop = np.array([NeuralNetwork(sizes, type=type, afunc=afunc, softmax=softmax) for i in range(self.N)])
         if start_agent is not None:
             self.pop[0] = start_agent
-        self.testNN = NeuralNetwork(sizes, type=type, afunc=afunc)
+        self.testNN = NeuralNetwork(sizes, type=type, afunc=afunc, softmax=softmax)
 
         pass
 
@@ -170,7 +170,6 @@ class DE:
 
         print(f"Best agent is {agent} with a train cost of \ "
               f"{self.NN_obj(agent, np.arange(self.X.shape[0]))}.")
-
         print(f"And a test cost of {self.obj([ytest, agent.feedforward(xtest)])}")
 
 
