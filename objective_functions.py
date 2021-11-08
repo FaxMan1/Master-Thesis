@@ -1,5 +1,7 @@
 import numpy as np
 from scipy.stats import multivariate_normal
+from torch.nn.functional import cross_entropy
+import torch
 
 
 def MSE(theta):
@@ -39,3 +41,15 @@ def crossEntropy(theta, epsilon=1e-15):
     a = yhat #NN.feedforward(X)
     # Calculate CrossEntropy error
     return np.mean(np.nan_to_num(-y * np.log(a + epsilon) - (1 - y) * np.log((1 - a) + epsilon)))
+
+def crossEntropyPytorch(theta):
+    y, yhat = theta
+    y = torch.tensor(y)
+    yhat = torch.tensor(yhat)
+    return cross_entropy(yhat, y)
+
+def stablesoftmax(x):
+    mx = np.max(x, axis=-1, keepdims=True)
+    numerator = np.exp(x - mx)  # .round(3)
+    denominator = np.sum(numerator, axis=-1, keepdims=True)
+    return numerator / denominator
