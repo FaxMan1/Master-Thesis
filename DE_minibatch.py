@@ -133,7 +133,7 @@ class DE:
 
         return self.best_agent
 
-    def evaluate(self, xtest, plot_function=None, agent=None, bounds=None, title=' '):
+    def evaluate(self, xtest, ytest, plot_function=None, agent=None, bounds=None, title=' '):
 
         if agent is None:
             agent = self.best_agent
@@ -162,8 +162,12 @@ class DE:
             plot_function(xtest, yhats, title=title, savefig=False)
             # plot_function(xtest, title='Label Gaussian')
 
-        print(f"Best agent is {agent} with a total cost of \
-              {np.round(self.NN_obj(agent, np.arange(self.X.shape[0])), 30)}.")
+        print(f"Best agent is {agent} with a train cost of \ "
+              f"{np.round(self.NN_obj(agent, np.arange(self.X.shape[0])), 5)}.")
+
+        print(f"And a test cost of {np.round(self.obj([agent.feedforward(xtest), ytest]), 5)}")
+
+
 
         # print(f"Worst initialization was {self.initial_worst_agent} with a cost of \
         # {np.round(self.obj(self.initial_worst_agent), 2)}.")
