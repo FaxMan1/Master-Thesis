@@ -12,7 +12,7 @@ from sklearn.metrics import confusion_matrix
 # # The Framework
 class NeuralNetwork:
     
-    def __init__(self, sizes, lr=0.01, type='classification', afunc='tanh', startweights=None, startbiases=None):
+    def __init__(self, sizes, lr=0.01, type='classification', afunc='tanh', softmax=True, startweights=None, startbiases=None):
     
         self.num_layers = len(sizes)
         self.sizes = sizes
@@ -22,6 +22,7 @@ class NeuralNetwork:
         # self.weights = [np.random.uniform(bounds[0], bounds[1], (x, y)) for x,y in zip(sizes[:-1], sizes[1:])]
         self.lr = lr
         self.type = type
+        self.use_softmax = softmax
         if afunc == 'tanh':
             self.afunction = ActivationFunctions.tanh
             self.derivfunction = ActivationFunctions.tanhPrime
@@ -60,8 +61,12 @@ class NeuralNetwork:
             self.activations.append(self.a)
 
         if self.type == 'classification':
-            # softmax for classification
-            return ActivationFunctions.stablesoftmax(self.z)
+            if self.use_softmax:
+                # softmax for classification
+                return ActivationFunctions.stablesoftmax(self.z)
+            else:
+                return self.z
+
 
         elif self.type == 'regression':
             # Linear output layer
