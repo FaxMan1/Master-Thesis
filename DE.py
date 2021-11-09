@@ -7,7 +7,7 @@ import copy
 
 class DE:
 
-    def __init__(self, objective_function, sizes, X, y, start_agent=None, pop_size=50,
+    def __init__(self, objective_function, sizes, X, y, Xtest=None, ytest=None, start_agent=None, pop_size=50,
                  F=0.5, cr=0.5, type='classification', afunc='tanh', softmax=True):
         self.obj = objective_function
         self.sizes = sizes
@@ -20,6 +20,10 @@ class DE:
         if start_agent is not None:
             self.pop[0] = start_agent
         self.testNN = NeuralNetwork(sizes, type=type, afunc=afunc, softmax=softmax)
+        if Xtest is not None and ytest is not None:
+            self.Xtest = Xtest
+            self.ytest = ytest
+            self.testcost = True
 
         pass
 
@@ -86,6 +90,11 @@ class DE:
         self.best_objs = np.zeros(num_epochs + 1)
         self.best_objs[0] = best_obj
 
+        if self.testcost:
+            best_test_obj = self.obj([self.ytest, self.best_agent.feedforward(self.Xtest)])
+            self.best_test_objs = np.zeros(num_epochs + 1)
+            self.best_test_objs[0] = best_test_obj
+
         for i in range(num_epochs):
             for j in range(self.N):
 
@@ -107,7 +116,6 @@ class DE:
 
             # update the current best objective function value
             best_obj = min(obj_all)
-            self.best_objs[i + 1] = best_obj
 
             if best_obj < prev_obj:
                 # update best agent
@@ -115,26 +123,34 @@ class DE:
                 # update previous solution to use for next iteration
                 prev_obj = best_obj
 
+            if self.testcost:
+                self.best_objs[i + 1] = best_obj
+                self.best_test_objs[i + 1] = self.obj([self.ytest, self.best_agent.feedforward(self.Xtest)])
+
             if verbose and i % print_epoch == 0:
                 # report progress at each iteration
                 print('%d: cost= %.5f' % (i, best_obj))
+                print('%d: testcost= %.5f' % (i, self.best_test_objs[i + 1]))
+                print()
 
         return self.best_agent
 
-    def evaluate(self, xtest, ytest, plot_function=None, agent=None, bounds=None, title=' '):
+    def evaluate(self, plot_function=None, agent=None, bounds=None, title=' '):
 
         if agent is None:
             agent = self.best_agent
             plt.figure(figsize=(13, 8))
             plt.plot(range(len(self.best_objs)), self.best_objs)
+            plt.plot(range(len(self.best_test_objs)), self.best_test_objs)
             plt.title('Training Graph', fontsize=24)
             plt.xlabel('Iterations', fontsize=20)
-            plt.ylabel('Fitness Value (MSE)', fontsize=20)
+            plt.ylabel('Cost', fontsize=20)
+            plt.legend(['Train', 'Test'], fontsize=14)
             plt.show()
 
         if plot_function is not None:
 
-            x1, x2 = xtest[:, 0], xtest[:, 1]
+            x1, x2 = self.Xtest[:, 0], self.Xtest[:, 1]
             x1mesh, x2mesh = np.meshgrid(x1, x2)
             yhats = []
             xtest3d = []
@@ -147,11 +163,11 @@ class DE:
                 yhats.append(yhat.flatten())
 
             yhats = np.array(yhats)
-            plot_function(xtest, yhats, title=title, savefig=False)
+            plot_function(self.Xtest, yhats, title=title, savefig=False)
             # plot_function(xtest, title='Label Gaussian')
 
         print(f"Best agent is {agent} with a train cost of {np.round(self.NN_obj(agent), 5)}.")
-        print(f"And a test cost of {np.round(self.obj([ytest, agent.feedforward(xtest)]), 5)}")
+        print(f"And a test cost of {np.round(self.obj([self.ytest, agent.feedforward(self.Xtest)]), 5)}")
 
         # print(f"Worst initialization was {self.initial_worst_agent} with a cost of \
         # {np.round(self.obj(self.initial_worst_agent), 2)}.")
