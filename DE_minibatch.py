@@ -7,7 +7,7 @@ import copy
 
 class DE:
 
-    def __init__(self, objective_function, sizes, X, y, start_agent=None, pop_size=50,
+    def __init__(self, objective_function, sizes, X, y, Xtest=None, ytest=None, start_agent=None, pop_size=50,
                  F=0.5, cr=0.5, type='classification', afunc='tanh', softmax=True):
         self.obj = objective_function
         self.sizes = sizes
@@ -20,6 +20,10 @@ class DE:
         if start_agent is not None:
             self.pop[0] = start_agent
         self.testNN = NeuralNetwork(sizes, type=type, afunc=afunc, softmax=softmax)
+        if Xtest is not None and ytest is not None:
+            self.Xtest = Xtest
+            self.ytest = ytest
+            self.testcost = True
 
         pass
 
@@ -94,7 +98,7 @@ class DE:
                 self.pop[j] = copy.deepcopy(self.testNN)
                 self.obj_all[j] = obj_u
 
-    def evolution(self, num_epochs, batch_size, eval_on_full=False, verbose=False, print_epoch=1000):
+    def evolution(self, num_epochs, batch_size, verbose=False, print_epoch=1000):
         idx = np.arange(self.X.shape[0])
         iterations_per_epoch = self.X.shape[0] // batch_size
         chosen1 = np.random.choice(idx, batch_size, replace=False)
@@ -110,6 +114,11 @@ class DE:
         self.best_objs = np.zeros(num_epochs + 1)
         self.best_objs[0] = best_obj
 
+        if self.testcost:
+            best_test_obj = self.obj([self.ytest, self.best_agent.feedforward(self.Xtest)])
+            self.best_test_objs = np.zeros(num_epochs + 1)
+            self.best_test_objs[0] = best_test_obj
+
         # iterate through every epoch
         for i in range(num_epochs):
             # iterate through all agents in the population
@@ -118,13 +127,8 @@ class DE:
                 self.evolve(chosen)  # evolve all agents in the population
 
                 # after all agents in the minibatch have been evolved, update the current best objective function value
-                if eval_on_full:
-                    obj_all_full = [self.NN_obj(agent, idx) for agent in self.pop]
-                    best_obj = min(obj_all_full)
-                    self.best_objs[i + 1] = best_obj
-                else:
-                    best_obj = min(self.obj_all)
-                    self.best_objs[i + 1] = best_obj
+                best_obj = min(self.obj_all)
+                self.best_objs[i + 1] = best_obj
 
                 if best_obj < prev_obj:
                     # update best agent
@@ -132,27 +136,34 @@ class DE:
                     # update previous solution to use for next iteration
                     prev_obj = best_obj
 
+            if self.testcost:
+                self.best_objs[i + 1] = best_obj
+                self.best_test_objs[i + 1] = self.obj([self.ytest, self.best_agent.feedforward(self.Xtest)])
+
             if verbose and i % print_epoch == 0:
                 # report progress at each iteration
                 print('%d: cost= %.5f' % (i, best_obj))
-                # print(np.round(self.NN_obj(self.best_agent), 5))
+                print('%d: testcost= %.5f' % (i, self.best_test_objs[i + 1]))
+                print()
 
         return self.best_agent
 
-    def evaluate(self, xtest, ytest, plot_function=None, agent=None, bounds=None, title=' '):
+    def evaluate(self, plot_function=None, agent=None, bounds=None, title=' '):
 
         if agent is None:
             agent = self.best_agent
             plt.figure(figsize=(13, 8))
             plt.plot(range(len(self.best_objs)), self.best_objs)
+            plt.plot(range(len(self.best_test_objs)), self.best_test_objs)
             plt.title('Training Graph', fontsize=24)
             plt.xlabel('Iterations', fontsize=20)
-            plt.ylabel('Fitness Value', fontsize=20)
+            plt.ylabel('Cost', fontsize=20)
+            plt.legend(['Train', 'Test'], fontsize=14)
             plt.show()
 
         if plot_function is not None:
 
-            x1, x2 = xtest[:, 0], xtest[:, 1]
+            x1, x2 = self.Xtest[:, 0], self.Xtest[:, 1]
             x1mesh, x2mesh = np.meshgrid(x1, x2)
             yhats = []
             xtest3d = []
@@ -165,12 +176,12 @@ class DE:
                 yhats.append(yhat.flatten())
 
             yhats = np.array(yhats)
-            plot_function(xtest, yhats, title=title, savefig=False)
+            plot_function(self.Xtest, yhats, title=title, savefig=False)
             # plot_function(xtest, title='Label Gaussian')
 
         print(f"Best agent is {agent} with a train cost of \ "
               f"{self.NN_obj(agent, np.arange(self.X.shape[0]))}.")
-        print(f"And a test cost of {self.obj([ytest, agent.feedforward(xtest)])}")
+        print(f"And a test cost of {self.obj([self.ytest, agent.feedforward(self.Xtest)])}")
 
 
 
