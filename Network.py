@@ -129,13 +129,17 @@ class NeuralNetwork:
 
     
 
-    def train_loop(self, Xtrain, Ytrain, Xtest, Ytest, epochs, batch_size, with_tqdm=False, cost = False, cost_last = False, acc = False, acc_last = False):
+    def train_loop(self, Xtrain, Ytrain, Xtest, Ytest, epochs, batch_size, with_tqdm=False, cost=False, cost_last=False,
+                   acc = False, acc_last = False, plot=False):
         iterations_per_epoch = Xtrain.shape[0] // batch_size
         testcosts = np.zeros(iterations_per_epoch)
         testaccs = np.zeros(iterations_per_epoch)
-        trainingcosts = np.zeros(iterations_per_epoch)
+        traincosts = np.zeros(iterations_per_epoch)
+        trainaccs = np.zeros(iterations_per_epoch)
         epochcosts = np.zeros((epochs, len(testcosts)))
+        epochtraincosts = np.zeros((epochs, len(testcosts)))
         epochaccs = np.zeros((epochs, len(testcosts)))
+        epochtrainaccs = np.zeros((epochs, len(testcosts)))
 
         idx = np.arange(Xtrain.shape[0])
 
@@ -169,11 +173,15 @@ class NeuralNetwork:
                     self.train(Xbatch, Ybatch)
                     if cost:
                         testcosts[i] = self.cost(self, Xtest, Ytest)
-                    elif acc:
-                        testaccs[i] = accuracy(Xtest, Ytest)
+                        traincosts[i] = self.cost(self, Xtrain, Ytrain)
+                    if acc:
+                        testaccs[i] = accuracy(self.feedforward(Xtest).argmax(axis=1), Ytest)
+                        trainaccs[i] = accuracy(self.feedforward(Xtrain).argmax(axis=1), Ytrain)
 
             
             epochcosts[k] = testcosts
+            epochtraincosts[k] = traincosts
+            epochtrainaccs[k] = trainaccs
             epochaccs[k] = testaccs
             #print(accuracy(XtestMnist, YtestMnist, "MNIST"))
             
@@ -182,13 +190,26 @@ class NeuralNetwork:
         
         if acc_last:
             return accuracy(Xtest, Ytest)
-        
-        if acc:
-            return epochaccs.mean(axis=1)
-        
-        return epochcosts.mean(axis=1)
-    
 
+        if acc and cost:
+            if plot:
+                plot_costs(epochtrainaccs.mean(axis=1), epochaccs.mean(axis=1), title='Accuracy')
+                plot_costs(epochtraincosts.mean(axis=1), epochcosts.mean(axis=1))
+            return epochcosts.mean(axis=1), epochtraincosts.mean(axis=1), epochaccs.mean(axis=1), epochtrainaccs.mean(axis=1)
+        elif acc:
+            return epochaccs.mean(axis=1), epochtrainaccs.mean(axis=1)
+
+        return epochcosts.mean(axis=1), epochtraincosts.mean(axis=1)
+    
+def plot_costs(train, test, title='Cost'):
+    plt.figure(figsize=(13, 8))
+    plt.title(title, fontsize=20)
+    plt.plot(train)
+    plt.plot(test)
+    plt.xlabel('Epochs', fontsize=16)
+    plt.ylabel(title, fontsize=16)
+    plt.legend(['Train', 'Test'], fontsize=14)
+    plt.show()
 
 # # The Functions
 class CostFunctions:
@@ -305,9 +326,9 @@ class ActivationFunctions:
         return np.exp(-z)/((1+np.exp(-z))**2)
 
 
-def accuracy(Xtest, Ytest, problem = None, plot = False):
+def accuracy(predictions, Ytest, problem = None, plot = False):
     
-    predictions = NN.feedforward(Xtest).argmax(axis = 1)
+    #predictions = model.feedforward(Xtest).argmax(axis = 1)
     true = Ytest.argmax(axis = 1)
     correct_preds = np.equal(true, predictions)
     
