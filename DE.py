@@ -189,7 +189,7 @@ class DE:
             val_error_new = self.obj([self.ytest, self.best_agent.feedforward(self.Xtest)])
             testcosts.append(val_error_new)
             if (val_error_new < val_error):
-                print("Cost falling", val_error_new)
+                print("Test Cost falling", val_error_new)
                 no_iterations_rising = 0
                 opt_iterations = iterations
                 val_error = val_error_new
