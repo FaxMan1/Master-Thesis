@@ -181,9 +181,45 @@ class DE:
               f"{self.NN_obj(agent, np.arange(self.X.shape[0]))}.")
         print(f"And a test cost of {self.obj([self.ytest, agent.feedforward(self.Xtest)])}")
 
-
-
         # print(f"Worst initialization was {self.initial_worst_agent} with a cost of \
         # {np.round(self.obj(self.initial_worst_agent), 2)}.")
 
         pass
+
+    def early_stop_training(self, patience, batch_size, eval=True):
+
+        n = 1
+        iterations = 0
+        no_iterations_rising = 0
+        val_error = 20000
+        opt_iterations = iterations
+        testcosts = []
+
+        while (no_iterations_rising < patience):
+            self.evolution(num_epochs=n, batch_size=batch_size, verbose=False, print_epoch=1)
+            iterations = iterations + n
+            val_error_new = self.obj([self.ytest, self.best_agent.feedforward(self.Xtest)])
+            testcosts.append(val_error_new)
+            if (val_error_new < val_error):
+                print("Cost falling", val_error_new)
+                no_iterations_rising = 0
+                opt_iterations = iterations
+                val_error = val_error_new
+            else:
+                no_iterations_rising += n
+
+        testcosts = np.array(testcosts)
+
+        if eval:
+            plt.figure(figsize=(13, 8))
+            plt.plot(range(len(testcosts)), testcosts)
+            plt.title('Test Cost Graph', fontsize=24)
+            plt.xlabel('Iterations', fontsize=20)
+            plt.ylabel('Test Cost', fontsize=20)
+            plt.show()
+
+        print("Optimal number of iterations:", opt_iterations)
+        print("Best error:", val_error)
+        print("Error at stop:", val_error_new)
+
+        return self.best_agent
