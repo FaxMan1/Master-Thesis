@@ -115,9 +115,8 @@ class DE:
         self.best_objs[0] = best_obj
 
         if self.testcost:
-            best_test_obj = self.obj([self.ytest, self.best_agent.feedforward(self.Xtest)])
             self.best_test_objs = np.zeros(num_epochs + 1)
-            self.best_test_objs[0] = best_test_obj
+            self.best_test_objs[0] = self.obj([self.ytest, self.best_agent.feedforward(self.Xtest)])
 
         # iterate through every epoch
         for i in range(num_epochs):
@@ -137,7 +136,6 @@ class DE:
                     prev_obj = best_obj
 
             if self.testcost:
-                self.best_objs[i + 1] = best_obj
                 self.best_test_objs[i + 1] = self.obj([self.ytest, self.best_agent.feedforward(self.Xtest)])
 
             if verbose and i % print_epoch == 0:
