@@ -160,22 +160,7 @@ class DE:
             plt.show()
 
         if plot_function is not None:
-
-            x1, x2 = self.Xtest[:, 0], self.Xtest[:, 1]
-            x1mesh, x2mesh = np.meshgrid(x1, x2)
-            yhats = []
-            xtest3d = []
-
-            for x1_, x2_ in zip(x1mesh, x2mesh):
-                xtest3d.append(np.column_stack([x1_, x2_]))
-
-            for x in xtest3d:
-                yhat = agent.feedforward(x)
-                yhats.append(yhat.flatten())
-
-            yhats = np.array(yhats)
-            plot_function(self.Xtest, yhats, title=title, savefig=False)
-            # plot_function(xtest, title='Label Gaussian')
+            plot_function(agent, self.Xtest, self.ytest, title=title, savefig=False)
 
         print(f"Best agent is {agent} with a train cost of \ "
               f"{self.NN_obj(agent, np.arange(self.X.shape[0]))}.")
