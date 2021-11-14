@@ -181,10 +181,11 @@ class DE:
 
         n = 1
         iterations = 0
+        chosen1 = np.random.choice(np.arange(self.X.shape[0]), batch_size, replace=False)
         if measure == 'cost':
             no_iterations_rising = 0
             val_error = 20000
-            self.opt_agent = copy.deepcopy(self.pop[np.argmin([self.NN_obj(agent) for agent in self.pop])])
+            self.opt_agent = copy.deepcopy(self.pop[np.argmin([self.NN_obj(agent, chosen1) for agent in self.pop])])
             opt_iterations = iterations
             testcosts = []
 
@@ -194,7 +195,7 @@ class DE:
                 val_error_new = self.obj([self.ytest, self.best_agent.feedforward(self.Xtest)])
                 testcosts.append(val_error_new)
                 if (val_error_new < val_error):
-                    print("Test Cost falling", val_error_new)
+                    print(f"{iterations}: Test Cost Falling  {val_error_new}")
                     no_iterations_rising = 0
                     self.opt_agent = copy.deepcopy(self.best_agent)
                     opt_iterations = iterations
@@ -204,27 +205,35 @@ class DE:
 
             testcosts = np.array(testcosts)
 
+            print("Optimal number of iterations:", opt_iterations)
+            print("Best error:", val_error)
+            print("Error at stop:", val_error_new)
+
         elif measure == 'accuracy':
             no_iterations_falling = 0
             val_acc = 0
             opt_iterations = iterations
             testcosts = []
-            self.opt_agent = copy.deepcopy(self.pop[np.argmin([self.NN_obj(agent) for agent in self.pop])])
+            self.opt_agent = copy.deepcopy(self.pop[np.argmin([self.NN_obj(agent, chosen1) for agent in self.pop])])
 
             while (no_iterations_falling < patience):
-                self.evolution(num_epochs=n, verbose=False, print_epoch=1)
+                self.evolution(num_epochs=n, batch_size=batch_size, verbose=False, print_epoch=1)
                 iterations = iterations + n
-                val_acc_new = self.accuracy(self.Xtest, self.ytest)
+                val_acc_new = self.accuracy(self.best_agent.feedforward(self.Xtest), self.ytest)
                 testcosts.append(val_acc_new)
                 if (val_acc_new > val_acc):
-                    print("Rising")
+                    print(f"{iterations}: Test Accuracy Rising  {val_acc_new}")
                     no_iterations_falling = 0
                     self.opt_agent = copy.deepcopy(self.best_agent)
                     opt_iterations = iterations
                     val_acc = val_acc_new
                 else:
                     no_iterations_falling += n
-                    print("Falling or the same")
+                    # print("Falling or the same")
+
+            print("Optimal number of iterations:", opt_iterations)
+            print("Best accuracy:", val_acc)
+            print("Accuracy at stop:", val_acc_new)
 
         if eval:
             plt.figure(figsize=(13, 8))
@@ -233,9 +242,5 @@ class DE:
             plt.xlabel('Iterations', fontsize=20)
             plt.ylabel('Test Cost', fontsize=20)
             plt.show()
-
-        print("Optimal number of iterations:", opt_iterations)
-        print("Best error:", val_error)
-        print("Error at stop:", val_error_new)
 
         return self.best_agent, self.opt_agent

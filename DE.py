@@ -182,7 +182,7 @@ class DE:
                 val_error_new = self.obj([self.ytest, self.best_agent.feedforward(self.Xtest)])
                 testcosts.append(val_error_new)
                 if (val_error_new < val_error):
-                    print("Test Cost falling", val_error_new)
+                    print(f"{iterations}: Test Cost Falling  {val_error_new}")
                     no_iterations_rising = 0
                     self.opt_agent = copy.deepcopy(self.best_agent)
                     opt_iterations = iterations
@@ -191,6 +191,9 @@ class DE:
                     no_iterations_rising += n
 
             testcosts = np.array(testcosts)
+            print("Optimal number of iterations:", opt_iterations)
+            print("Best error:", val_error)
+            print("Error at stop:", val_error_new)
 
         elif measure == 'accuracy':
             no_iterations_falling = 0
@@ -205,14 +208,18 @@ class DE:
                 val_acc_new = self.accuracy(self.Xtest, self.ytest)
                 testcosts.append(val_acc_new)
                 if (val_acc_new > val_acc):
-                    print("Rising")
+                    print(f"{iterations}: Test Accuracy Rising  {val_acc_new}")
                     no_iterations_falling = 0
                     self.opt_agent = copy.deepcopy(self.best_agent)
                     opt_iterations = iterations
                     val_acc = val_acc_new
                 else:
                     no_iterations_falling += n
-                    print("Falling or the same")
+                    # print("Falling or the same")
+
+            print("Optimal number of iterations:", opt_iterations)
+            print("Best accuracy:", val_acc)
+            print("Accuracy at stop:", val_acc_new)
 
         if eval:
             plt.figure(figsize=(13, 8))
@@ -221,9 +228,5 @@ class DE:
             plt.xlabel('Iterations', fontsize=20)
             plt.ylabel('Test Cost', fontsize=20)
             plt.show()
-
-        print("Optimal number of iterations:", opt_iterations)
-        print("Best error:", val_error)
-        print("Error at stop:", val_error_new)
 
         return self.best_agent, self.opt_agent

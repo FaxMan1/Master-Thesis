@@ -38,7 +38,7 @@ def create_simple_data(problem='parabola', num_data_points=30, bounds=None, nois
         Xtrain = np.random.uniform(low=-1, high=1, size=(num_data_points, 1))
         ytrain = Xtrain ** 2
 
-        Xtest = np.linspace(-1, 2, num_data_points)
+        Xtest = np.linspace(-1, 1, num_data_points)
         Xtest = np.array(Xtest, ndmin=2).T
         ytest = Xtest ** 2
         if noise:
