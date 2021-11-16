@@ -27,11 +27,13 @@ class DE:
 
         pass
 
-    def save_params(self, wfname='weights', bfname='biases'):
+    def save_params(self, agent=None, wfname='weights', bfname='biases'):
+        if agent is None:
+            agent = self.best_agent
         d = datetime.now(tz=None)
         date = '_' + str(d.day) + '.' + str(d.month) + '_' + str(d.hour) + '.' + str(d.minute)
-        np.savez(wfname + date, *self.best_agent.weights)
-        np.savez(bfname + date, *self.best_agent.biases)
+        np.savez(wfname + date, *agent.weights)
+        np.savez(bfname + date, *agent.biases)
 
     def load_params(self, weight_file, bias_file):
 
@@ -177,7 +179,7 @@ class DE:
         correct_preds = np.equal(true, predictions)
         return (sum(correct_preds) / len(true))
 
-    def early_stop_training(self, patience, batch_size, measure='cost', eval=True):
+    def early_stop_training(self, patience, batch_size, measure='cost', eval=True, v=True):
 
         n = 1
         iterations = 0
@@ -195,7 +197,7 @@ class DE:
                 val_error_new = self.obj([self.ytest, self.best_agent.feedforward(self.Xtest)])
                 testcosts.append(val_error_new)
                 if (val_error_new < val_error):
-                    print(f"{iterations}: Test Cost Falling  {val_error_new}")
+                    if v: print(f"{iterations}: Test Cost Falling  {val_error_new}")
                     no_iterations_rising = 0
                     self.opt_agent = copy.deepcopy(self.best_agent)
                     opt_iterations = iterations
@@ -205,12 +207,14 @@ class DE:
 
             testcosts = np.array(testcosts)
 
-            print("Optimal number of iterations:", opt_iterations)
-            print("Best error:", val_error)
-            print("Error at stop:", val_error_new)
+            if v:
+                print("Optimal number of iterations:", opt_iterations)
+                print("Best error:", val_error)
+                print("Error at stop:", val_error_new)
 
         elif measure == 'accuracy':
             no_iterations_falling = 0
+            counter = 0
             val_acc = 0
             opt_iterations = iterations
             testcosts = []
@@ -222,7 +226,7 @@ class DE:
                 val_acc_new = self.accuracy(self.best_agent.feedforward(self.Xtest), self.ytest)
                 testcosts.append(val_acc_new)
                 if (val_acc_new > val_acc):
-                    print(f"{iterations}: Test Accuracy Rising  {val_acc_new}")
+                    if v: print(f"{iterations}: Test Accuracy Rising  {val_acc_new}")
                     no_iterations_falling = 0
                     self.opt_agent = copy.deepcopy(self.best_agent)
                     opt_iterations = iterations
@@ -231,9 +235,10 @@ class DE:
                     no_iterations_falling += n
                     # print("Falling or the same")
 
-            print("Optimal number of iterations:", opt_iterations)
-            print("Best accuracy:", val_acc)
-            print("Accuracy at stop:", val_acc_new)
+            if v:
+                print("Optimal number of iterations:", opt_iterations)
+                print("Best accuracy:", val_acc)
+                print("Accuracy at stop:", val_acc_new)
 
         if eval:
             plt.figure(figsize=(13, 8))

@@ -81,6 +81,15 @@ class Comms_System:
             blocks.append(Rx[start+i*self.m: start + (i+1)*self.m])
         return blocks
 
+    def get_signal_in_blocks(self, Rx):
+        blocks = []
+        jump = self.start_sample_point
+
+        for i in range(len(self.symbol_seq)):
+            blocks.append(Rx[i*self.m: (i*self.m)+jump])
+
+        return blocks
+
     def decision_making(self, downsampled, v=False):
         chosen_symbols = np.zeros(len(downsampled))
         for i in range(len(downsampled)):
