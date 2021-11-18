@@ -1,8 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from commpy.filters import rrcosfilter
-from ML_components import ML_decision_making
-from ML_components import ML_downsampling
+from ML_components import ML_decision_making, ML_downsampling, ML_filtering
 
 
 class Comms_System:
@@ -119,10 +118,11 @@ class Comms_System:
 
         return decisions
 
-    def test_CS(self, noise_level=2, model=None, v=False, mode='downsampled'):
+    def test_CS(self, noise_level=2, dec_model=None, block_model=None, filter_model=None, v=False):
 
         # calibrate
         gain_factor = np.max(np.convolve(self.h, self.h))
+        gain_factor_tx = np.max(self.h)
 
         # upsample symbol sequence and filter it on transmission side
         upsampled = self.upsample(v=v)
@@ -135,7 +135,7 @@ class Comms_System:
         # Filter on receiver side
         Rx = np.convolve(Tx, self.h)
         blocks = self.get_periods(Rx/gain_factor)
-        block_decisions = ML_downsampling(blocks, self.symbol_set)
+        filter_blocks = self.get_signal_in_blocks(Tx/gain_factor_tx)
         if v:
             self.plot_filtered(Tx, title='Filtered Signal with Noise')
             self.plot_filtered(Rx, title='Received Signal')
@@ -144,10 +144,13 @@ class Comms_System:
         downsampled = self.downsample(Rx)/gain_factor
 
         # Decision-making downsampled values
-        decisions = self.decision_making(downsampled, False)
-        NN_decisions = ML_decision_making(downsampled, self.symbol_set, model=model)
+        euclid_decisions = self.decision_making(downsampled, False)
+        NN_decisions = ML_decision_making(downsampled, self.symbol_set, model=dec_model)
+        block_decisions = ML_downsampling(blocks, self.symbol_set, model=block_model)
+        filter_decisions = ML_filtering(filter_blocks, self.symbol_set, model=filter_model)
 
-        return decisions, NN_decisions, downsampled, block_decisions
+
+        return euclid_decisions, NN_decisions, block_decisions, filter_decisions, downsampled
 
     def evaluate(self, decisions):
 

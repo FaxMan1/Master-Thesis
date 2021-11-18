@@ -16,16 +16,35 @@ def load_params(weight_file, bias_file):
     return weights, biases, sizes
 
 
+def ML_filtering(blocks, classes, model=None):
+
+    X = np.array(blocks)
+    classes = np.array(classes)
+    if model is not None:
+        return classes[model.feedforward(X).argmax(axis=1)]
+
+    w, b, sizes = load_params('../Weights/best_filtering_weights.npz',
+                              '../Weights/best_filtering_biases.npz')
+    best_agent = NeuralNetwork(sizes, startweights=w, startbiases=b,
+                               type='classification', afunc='relu')
+
+    return classes[best_agent.feedforward(X).argmax(axis=1)]
+
+
 def ML_downsampling(blocks, classes, model=None):
 
-   X = np.array(blocks)
-   classes = np.array(classes)
-   w, b, sizes = load_params('../Weights/block_decision_making_weights.npz',
+    X = np.array(blocks)
+    classes = np.array(classes)
+
+    if model is not None:
+        return classes[model.feedforward(X).argmax(axis=1)]
+
+    w, b, sizes = load_params('../Weights/block_decision_making_weights.npz',
                              '../Weights/block_decision_making_biases.npz')
-   best_agent = NeuralNetwork(sizes, startweights=w, startbiases=b,
+    best_agent = NeuralNetwork(sizes, startweights=w, startbiases=b,
                               type='classification', afunc='relu')
 
-   return classes[best_agent.feedforward(X).argmax(axis=1)]
+    return classes[best_agent.feedforward(X).argmax(axis=1)]
 
 
 
