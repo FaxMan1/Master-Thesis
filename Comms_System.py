@@ -152,6 +152,7 @@ class Comms_System:
 
         return euclid_decisions, NN_decisions, block_decisions, filter_decisions, downsampled
 
+
     def evaluate(self, decisions):
 
         num_errors = np.sum(np.array(decisions) != np.array(self.symbol_seq))
