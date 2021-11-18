@@ -1,5 +1,6 @@
 import numpy as np
 from Network import NeuralNetwork
+import os
 # from train_decision_making import generate_train_data, train
 
 def load_params(weight_file, bias_file):
@@ -19,8 +20,8 @@ def ML_downsampling(blocks, classes, model=None):
 
    X = np.array(blocks)
    classes = np.array(classes)
-   w, b, sizes = load_params('../SavedWeights/block_decision_making_weights.npz',
-                             '../SavedWeights/block_decision_making_biases.npz')
+   w, b, sizes = load_params('../Weights/block_decision_making_weights.npz',
+                             '../Weights/block_decision_making_biases.npz')
    best_agent = NeuralNetwork(sizes, startweights=w, startbiases=b,
                               type='classification', afunc='relu')
 
@@ -30,8 +31,8 @@ def ML_downsampling(blocks, classes, model=None):
 
 
 def ML_decision_making(downsampled, classes, model=None,
-                       w_path='../SavedWeights/decision_making_weights.npz',
-                       b_path='../SavedWeights/decision_making_biases.npz'):
+                       w_path='../Weights/decision_making_weights.npz',
+                       b_path='../Weights/decision_making_biases.npz'):
 
     X = np.array(downsampled, ndmin=2).T
     classes = np.array(classes)
