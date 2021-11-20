@@ -23,8 +23,8 @@ def ML_filtering(blocks, classes, model=None):
     if model is not None:
         return classes[model.feedforward(X).argmax(axis=1)]
 
-    w, b, sizes = load_params('../Weights/best_filtering_weights.npz',
-                              '../Weights/best_filtering_biases.npz')
+    w, b, sizes = load_params('../Weights/best_filter_weights_8.npz',
+                              '../Weights/best_filter_biases_8.npz')
     best_agent = NeuralNetwork(sizes, startweights=w, startbiases=b,
                                type='classification', afunc='relu')
 
