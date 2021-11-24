@@ -144,9 +144,3 @@ def train_loop_old(model, optimizer, criterion, X, y, epochs=1000, v=False, plot
                 # plt.plot(list(NN.parameters())[1].detach())
                 plt.show()
                 print(loss.item())
-
-
-
-
-
-

@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from Network import NeuralNetwork
+from operator import itemgetter
 from datetime import datetime
 import copy
 import torch
@@ -16,8 +16,10 @@ class DE:
         self.N = pop_size
         self.F = F
         self.cr = cr
-        self.pop = population_function(pop_size)
-        self.testNN = population_function(1)[0]
+        # self.pop = population_function(pop_size)
+        self.pop = [population_function() for i in range(pop_size)]
+        self.testNN = population_function()
+        self.testcost = False
         if start_agent is not None:
             self.pop[0] = copy.deepcopy(start_agent)
         if Xtest is not None and ytest is not None:
@@ -62,14 +64,16 @@ class DE:
 
         if self.testcost:
             self.best_test_objs = np.zeros(num_epochs + 1)
-            self.best_test_objs[0] = self.obj([self.ytest, self.best_agent.feedforward(self.Xtest)])
+            self.best_test_objs[0] = self.obj(self.best_agent(self.Xtest)[0].T, self.y.long())
 
         for i in range(num_epochs):
             for j in range(self.N):
 
                 # Random sampling from the set of all agents exluding the current one, j
                 x = self.pop[j]
-                a, b, c = self.pop[np.random.choice(np.delete(np.arange(self.N), j), 3, replace=False)]
+                choice = np.random.choice(np.delete(np.arange(self.N), j), 3, replace=False)
+                a, b, c = itemgetter(*choice)(self.pop)
+                # a, b, c = self.pop[np.random.choice(np.delete(np.arange(self.N), j), 3, replace=False)]
 
                 # Mutation
                 self.mutation([a, b, c])
@@ -94,7 +98,7 @@ class DE:
                 prev_obj = best_obj
 
             if self.testcost:
-                self.best_test_objs[i + 1] = self.obj(self.best_agent(self.Xtest)[0].T, self.y)
+                self.best_test_objs[i + 1] = self.obj(self.best_agent(self.Xtest)[0].T, self.y.long())
 
             if verbose and i % print_epoch == 0:
                 # report progress at each iteration
@@ -120,8 +124,8 @@ class DE:
         if plot_function is not None:
             plot_function(agent, self.Xtest, self.ytest, title=title, savefig=False)
 
-        print(f"Best agent is {agent} with a train cost of {np.round(self.NN_obj(agent), 5)}.")
-        print(f"And a test cost of {np.round(self.obj([self.ytest, agent.feedforward(self.Xtest)]), 5)}")
+        print(f"Best agent is {agent} with a train cost of {np.round(self.NN_obj(agent).detach(), 5)}.")
+        print(f"And a test cost of {np.round(self.obj(agent(self.Xtest)[0].T, self.y.long()).detach(), 5)}")
 
         # print(f"Worst initialization was {self.initial_worst_agent} with a cost of \
         # {np.round(self.obj(self.initial_worst_agent), 2)}.")
