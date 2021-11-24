@@ -64,7 +64,7 @@ class DE:
 
         if self.testcost:
             self.best_test_objs = np.zeros(num_epochs + 1)
-            self.best_test_objs[0] = self.obj(self.best_agent(self.Xtest)[0].T, self.y.long())
+            self.best_test_objs[0] = self.obj(self.best_agent(self.Xtest)[0].T, self.ytest.long())
 
         for i in range(num_epochs):
             for j in range(self.N):
@@ -98,7 +98,7 @@ class DE:
                 prev_obj = best_obj
 
             if self.testcost:
-                self.best_test_objs[i + 1] = self.obj(self.best_agent(self.Xtest)[0].T, self.y.long())
+                self.best_test_objs[i + 1] = self.obj(self.best_agent(self.Xtest)[0].T, self.ytest.long())
 
             if verbose and i % print_epoch == 0:
                 # report progress at each iteration
@@ -125,7 +125,7 @@ class DE:
             plot_function(agent, self.Xtest, self.ytest, title=title, savefig=False)
 
         print(f"Best agent is {agent} with a train cost of {np.round(self.NN_obj(agent).detach(), 5)}.")
-        print(f"And a test cost of {np.round(self.obj(agent(self.Xtest)[0].T, self.y.long()).detach(), 5)}")
+        print(f"And a test cost of {np.round(self.obj(agent(self.Xtest)[0].T, self.ytest.long()).detach(), 5)}")
 
         # print(f"Worst initialization was {self.initial_worst_agent} with a cost of \
         # {np.round(self.obj(self.initial_worst_agent), 2)}.")
