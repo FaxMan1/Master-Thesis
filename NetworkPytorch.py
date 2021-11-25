@@ -51,7 +51,7 @@ def train_loop(model, optimizer, cost, Xtrain, ytrain, Xtest=None, ytest=None, e
                     print("Epoch %d: \n Train Loss: %s \n Test Loss: %s" %
                         (i, loss.item(), test_loss))
 
-                    plt.plot(list(model.parameters())[0].detach()[0][0])
+                    plt.plot(list(model.parameters())[0].cpu().detach()[0][0])
                     # plt.plot(list(NN.parameters())[1].detach())
                     plt.show()
                     #print(loss.item())
@@ -117,7 +117,7 @@ def train_loop_minibatch(model, optimizer, cost, Xtrain, ytrain, Xtest=None, yte
                         (i, train_loss, test_loss))
 
                 if i % plot_iteration == 0:
-                    plt.plot(list(model.parameters())[0].detach()[0][0])
+                    plt.plot(list(model.parameters())[0].to('cpu').detach()[0][0])
                     # plt.plot(list(NN.parameters())[1].detach())
                     plt.show()
                     print(loss.item())
