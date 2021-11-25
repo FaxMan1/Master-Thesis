@@ -208,7 +208,7 @@ class DE:
             while (no_iterations_falling < patience):
                 self.evolution(num_epochs=n, verbose=False, print_epoch=1)
                 iterations = iterations + n
-                val_acc_new = self.accuracy(self.Xtest, self.ytest)
+                val_acc_new = self.accuracy(self.best_agent.feedforward(self.Xtest), self.ytest)
                 testcosts.append(val_acc_new)
                 if (val_acc_new > val_acc):
                     if v: print(f"{iterations}: Test Accuracy Rising  {val_acc_new}")
