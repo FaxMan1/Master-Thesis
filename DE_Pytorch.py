@@ -46,8 +46,7 @@ class DE:
     def crossover(self, target):
 
         for dw, tw in zip(self.testNN.parameters(), target.parameters()):
-            r = torch.rand(dw.shape, device=self.device)
-            crit = r < self.cr
+            crit = torch.rand(dw.shape, device=self.device) < self.cr
             trial_w = crit * dw + ~crit * tw
             dw.data = trial_w
 
