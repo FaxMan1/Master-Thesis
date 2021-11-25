@@ -9,27 +9,35 @@ import torch
 class DE:
 
     def __init__(self, objective_function, population_function, X, y, Xtest=None, ytest=None, pop_size=50,
-                 F=0.5, cr=0.5, start_agent=None):
+                 F=0.5, cr=0.5, start_agent=None, use_cuda=False):
         self.obj = objective_function
         self.X = X
-        self.y = y
+        self.y = y.long()
         self.N = pop_size
         self.F = F
         self.cr = cr
-        # self.pop = population_function(pop_size)
-        self.pop = [population_function() for i in range(pop_size)]
-        self.testNN = population_function()
         self.testcost = False
         if start_agent is not None:
             self.pop[0] = copy.deepcopy(start_agent)
         if Xtest is not None and ytest is not None:
             self.Xtest = Xtest
-            self.ytest = ytest
+            self.ytest = ytest.long()
             self.testcost = True
+        if use_cuda and torch.cuda.is_available():
+            print('Using GPU')
+            self.X, self.y = X.to('cuda'), y.to('cuda')
+            self.pop = [population_function().cuda() for i in range(pop_size)]
+            self.testNN = population_function().cuda()
+            if self.testcost:
+                self.Xtest, self.ytest = Xtest.to('cuda'), ytest.to('cuda')
+        else:
+            self.pop = [population_function() for i in range(pop_size)]
+            self.testNN = population_function()
+
 
     def NN_obj(self, agent):
         yhat = agent(self.X)[0].T
-        return self.obj(yhat, self.y.long())
+        return self.obj(yhat, self.y)
 
     def mutation(self, nets):
 
@@ -56,7 +64,7 @@ class DE:
         # find the best agent within the initial population
         self.best_agent = self.pop[np.argmin(obj_all)]
 
-        best_obj = min(obj_all)
+        best_obj = np.min(obj_all)
         prev_obj = best_obj
 
         self.best_objs = np.zeros(num_epochs + 1)
@@ -64,13 +72,11 @@ class DE:
 
         if self.testcost:
             self.best_test_objs = np.zeros(num_epochs + 1)
-            self.best_test_objs[0] = self.obj(self.best_agent(self.Xtest)[0].T, self.ytest.long())
+            self.best_test_objs[0] = self.obj(self.best_agent(self.Xtest)[0].T, self.ytest)
 
         for i in range(num_epochs):
-            for j in range(self.N):
+            for j, x in enumerate(self.pop):
 
-                # Random sampling from the set of all agents exluding the current one, j
-                x = self.pop[j]
                 choice = np.random.choice(np.delete(np.arange(self.N), j), 3, replace=False)
                 a, b, c = itemgetter(*choice)(self.pop)
                 # a, b, c = self.pop[np.random.choice(np.delete(np.arange(self.N), j), 3, replace=False)]
@@ -88,7 +94,7 @@ class DE:
                     obj_all[j] = obj_u
 
             # update the current best objective function value
-            best_obj = min(obj_all)
+            best_obj = np.min(obj_all)
             self.best_objs[i + 1] = best_obj
 
             if best_obj < prev_obj:
@@ -98,7 +104,7 @@ class DE:
                 prev_obj = best_obj
 
             if self.testcost:
-                self.best_test_objs[i + 1] = self.obj(self.best_agent(self.Xtest)[0].T, self.ytest.long())
+                self.best_test_objs[i + 1] = self.obj(self.best_agent(self.Xtest)[0].T, self.ytest)
 
             if verbose and i % print_epoch == 0:
                 # report progress at each iteration
@@ -125,7 +131,7 @@ class DE:
             plot_function(agent, self.Xtest, self.ytest, title=title, savefig=False)
 
         print(f"Best agent is {agent} with a train cost of {np.round(self.NN_obj(agent).detach(), 5)}.")
-        print(f"And a test cost of {np.round(self.obj(agent(self.Xtest)[0].T, self.ytest.long()).detach(), 5)}")
+        print(f"And a test cost of {np.round(self.obj(agent(self.Xtest)[0].T, self.ytest).detach(), 5)}")
 
         # print(f"Worst initialization was {self.initial_worst_agent} with a cost of \
         # {np.round(self.obj(self.initial_worst_agent), 2)}.")
