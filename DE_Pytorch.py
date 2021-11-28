@@ -19,6 +19,7 @@ class DE:
         self.X = X.to(self.device)
         self.y = y.long().to(self.device)
         self.N = pop_size
+        self.pop_func = population_function
         self.F = torch.Tensor([F]).to(self.device)
         self.cr = torch.Tensor([cr]).to(self.device)
         self.pop = [population_function().to(self.device) for i in range(pop_size)]
@@ -31,6 +32,24 @@ class DE:
             self.ytest = ytest.long().to(self.device)
             self.testcost = True
 
+    def save_params(self, fname, path='../Conv1DWeights/', agent=None):
+        if agent is None:
+            agent = self.best_agent
+        torch.save(agent.state_dict(), f=path + fname)
+        pass
+
+    def save_model(self, fname, path='../Conv1DModels/', agent=None):
+        if agent is None:
+            agent = self.best_agent
+        torch.save(agent, path+fname)
+
+    def load_params(self, fname, path='../Conv1DWeights/'):
+        new_NN = self.pop_func()
+        new_NN.load_state_dict(torch.load(path + fname))
+        return new_NN
+
+    def load_model(self, fname, path='../Conv1DModels/'):
+        return torch.load(path+fname)
 
     def NN_obj(self, agent):
         yhat = agent(self.X)[0].T
@@ -105,6 +124,8 @@ class DE:
                 # report progress at each iteration
                 print('%d: cost= %.5f' % (i, best_obj))
                 print('%d: testcost= %.5f' % (i, self.best_test_objs[i + 1]))
+                print('%d: acc= %.5f' % (i, self.accuracy(self.best_agent(self.X), self.y)))
+                print('%d: testacc= %.5f' % (i, self.accuracy(self.best_agent(self.Xtest), self.ytest)))
                 print()
 
         return self.best_agent
@@ -135,8 +156,8 @@ class DE:
 
     def accuracy(self, predictions, ytest):
         predictions = predictions.argmax(axis=1)
-        correct_preds = np.equal(ytest, predictions)
-        return (torch.sum(correct_preds) / len(ytest))
+        correct_preds = ytest == predictions
+        return torch.sum(correct_preds) / len(ytest)
 
     def early_stop_training(self, patience, measure='cost', eval=True, v=True):
 
@@ -145,7 +166,8 @@ class DE:
         if measure == 'cost':
             no_iterations_rising = 0
             val_error = 20000
-            self.opt_agent = copy.deepcopy(self.pop[np.argmin([self.NN_obj(agent) for agent in self.pop])])
+            obj_all = torch.Tensor([self.NN_obj(agent) for agent in self.pop])
+            self.opt_agent = copy.deepcopy(self.pop[torch.argmin(obj_all)])
             opt_iterations = iterations
             testcosts = []
 
@@ -153,7 +175,7 @@ class DE:
                 self.evolution(num_epochs=n, verbose=False, print_epoch=1)
                 iterations = iterations + n
                 val_error_new = self.obj(self.best_agent(self.Xtest)[0].T, self.ytest)
-                testcosts.append(val_error_new)
+                testcosts.append(val_error_new.item())
                 if (val_error_new < val_error):
                     if v: print(f"{iterations}: Test Cost Falling  {val_error_new}")
                     no_iterations_rising = 0
@@ -174,13 +196,14 @@ class DE:
             val_acc = 0
             opt_iterations = iterations
             testcosts = []
-            self.opt_agent = copy.deepcopy(self.pop[np.argmin([self.NN_obj(agent) for agent in self.pop])])
+            obj_all = torch.Tensor([self.NN_obj(agent) for agent in self.pop])
+            self.opt_agent = copy.deepcopy(self.pop[torch.argmin(obj_all)])
 
             while (no_iterations_falling < patience):
                 self.evolution(num_epochs=n, verbose=False, print_epoch=1)
                 iterations = iterations + n
                 val_acc_new = self.accuracy(self.best_agent(self.Xtest), self.ytest)
-                testcosts.append(val_acc_new)
+                testcosts.append(val_acc_new.item())
                 if (val_acc_new > val_acc):
                     if v: print(f"{iterations}: Test Accuracy Rising  {val_acc_new}")
                     no_iterations_falling = 0
@@ -198,7 +221,7 @@ class DE:
 
         if eval:
             plt.figure(figsize=(13, 8))
-            plt.plot(range(len(testcosts)), testcosts)
+            plt.plot(testcosts)
             plt.title('Test Cost Graph', fontsize=24)
             plt.xlabel('Iterations', fontsize=20)
             plt.ylabel('Test Cost', fontsize=20)

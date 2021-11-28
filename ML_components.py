@@ -1,6 +1,8 @@
 import numpy as np
 from Network import NeuralNetwork
+import torch
 import os
+from DE_Pytorch import DE
 # from train_decision_making import generate_train_data, train
 
 def load_params(weight_file, bias_file):
@@ -15,7 +17,6 @@ def load_params(weight_file, bias_file):
 
     return weights, biases, sizes
 
-
 def ML_filtering(blocks, classes, model=None):
 
     X = np.array(blocks)
@@ -29,6 +30,17 @@ def ML_filtering(blocks, classes, model=None):
                                type='classification', afunc='relu')
 
     return classes[best_agent.feedforward(X).argmax(axis=1)]
+
+
+def network_receiver(Rx, classes, model=None, path='../Conv1DModels/'):
+
+    X = torch.tensor(Rx).view(1, 1, -1).float()
+
+    classes = np.array(classes)
+    if model is None:
+        model = torch.load(path + 'best_Conv1DModel')
+
+    return classes[model(X).argmax(axis=1)]
 
 
 def ML_downsampling(blocks, classes, model=None):

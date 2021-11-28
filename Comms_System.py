@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from commpy.filters import rrcosfilter
-from ML_components import ML_decision_making, ML_downsampling, ML_filtering
+from ML_components import ML_decision_making, ML_downsampling, ML_filtering, network_receiver
 
 
 class Comms_System:
@@ -106,19 +106,21 @@ class Comms_System:
 
         gain_factor = np.max(np.convolve(self.h, self.h))
         upsampled = self.upsample()
+
         Tx = np.convolve(upsampled, self.h)
         Tx = Tx + np.random.normal(0.0, noise_level, Tx.shape)  # add gaussian noise
         Rx = np.convolve(Tx, self.h)
         downsampled = self.downsample(Rx)/gain_factor
 
         if mode == 'euclidean':
-            decisions = self.decision_making(downsampled, False)
-        elif mode == 'ML':
-            decisions = ML_decision_making(downsampled, self.symbol_set)
+            received_symbols = self.decision_making(downsampled, False)
+        elif mode == 'network':
+            received_symbols = network_receiver(Tx, self.symbol_set)
 
-        return decisions
+        return received_symbols
 
-    def test_CS(self, noise_level=2, dec_model=None, block_model=None, filter_model=None, v=False):
+    def test_CS(self, noise_level=2, dec_model=None, block_model=None, filter_model=None,
+                conv_model=None, v=False):
 
         # calibrate
         gain_factor = np.max(np.convolve(self.h, self.h))
@@ -132,6 +134,7 @@ class Comms_System:
 
         # Transmit the filtered signal (i.e. add noise)
         Tx = Tx + np.random.normal(0.0, noise_level, Tx.shape)  # add gaussian noise
+
         # Filter on receiver side
         Rx = np.convolve(Tx, self.h)
         blocks = self.get_periods(Rx/gain_factor)
@@ -148,9 +151,10 @@ class Comms_System:
         NN_decisions = ML_decision_making(downsampled, self.symbol_set, model=dec_model)
         block_decisions = ML_downsampling(blocks, self.symbol_set, model=block_model)
         filter_decisions = ML_filtering(filter_blocks, self.symbol_set, model=filter_model)
+        conv_decisions = network_receiver(Tx, self.symbol_set, model=conv_model)
 
 
-        return euclid_decisions, NN_decisions, block_decisions, filter_decisions, downsampled
+        return euclid_decisions, NN_decisions, block_decisions, filter_decisions, conv_decisions, downsampled
 
 
     def evaluate(self, decisions):
