@@ -113,14 +113,10 @@ class Comms_System:
         return chosen_symbols
 
 
-    def transmission(self, mode='euclidean', noise_level=2, lowpass=False):
+    def transmission(self, mode='euclidean', noise_level=2):
 
         gain_factor = np.max(np.convolve(self.h, self.h))
         upsampled = self.upsample()
-
-        if lowpass:
-            b, a = self.butter_lowpass(2, self.m, 4)
-            upsampled = signal.lfilter(b, a, upsampled)
 
         Tx = np.convolve(upsampled, self.h)
         Tx = Tx + np.random.normal(0.0, noise_level, Tx.shape)  # add gaussian noise
@@ -135,7 +131,7 @@ class Comms_System:
         return received_symbols
 
     def test_CS(self, noise_level=2, dec_model=None, block_model=None, filter_model=None,
-                conv_model=None, v=False):
+                conv_model=None, lowpass=None, v=False):
 
         # calibrate
         gain_factor = np.max(np.convolve(self.h, self.h))
@@ -143,6 +139,9 @@ class Comms_System:
 
         # upsample symbol sequence and filter it on transmission side
         upsampled = self.upsample(v=v)
+        if lowpass is not None:
+            b, a = self.butter_lowpass(lowpass, self.m, 4)
+            upsampled = signal.lfilter(b, a, upsampled)
         Tx = np.convolve(upsampled, self.h)
         if v:
             self.plot_filtered(Tx)

@@ -72,6 +72,7 @@ def train_loop_minibatch(model, optimizer, cost, Xtrain, ytrain, Xtest=None, yte
 
     Xtrain, ytrain = Xtrain.to(device), ytrain.to(device)
     Xtest, ytest = Xtest.to(device), ytest.to(device)
+    model = model.to(device)
 
     iterations_per_epoch = Xtrain.shape[0] // batch_size
     idx = torch.arange(Xtrain.shape[0])
