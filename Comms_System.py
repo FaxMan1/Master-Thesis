@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from commpy.filters import rrcosfilter
 from ML_components import ML_decision_making, ML_downsampling, ML_filtering, network_receiver
+from scipy import signal
 
 
 class Comms_System:
@@ -28,6 +29,16 @@ class Comms_System:
             plt.show()
 
         return upsampled
+
+    def butter_lowpass(self, cutoff_freq, sampling_rate, order=4):
+
+        nyquist_freq = 0.5 * sampling_rate
+        normalized_cutoff = cutoff_freq / nyquist_freq
+        b, a = signal.butter(order, normalized_cutoff, 'low')
+        return b, a
+
+    def plot_spectrum(self, signal_time, sample_rate):
+        return plt.magnitude_spectrum(signal_time, Fs=sample_rate, color='C1')
 
     def rrcos(self, beta, v=False):
 
@@ -102,10 +113,14 @@ class Comms_System:
         return chosen_symbols
 
 
-    def transmission(self, mode='euclidean', noise_level=2):
+    def transmission(self, mode='euclidean', noise_level=2, lowpass=False):
 
         gain_factor = np.max(np.convolve(self.h, self.h))
         upsampled = self.upsample()
+
+        if lowpass:
+            b, a = self.butter_lowpass(2, self.m, 4)
+            upsampled = signal.lfilter(b, a, upsampled)
 
         Tx = np.convolve(upsampled, self.h)
         Tx = Tx + np.random.normal(0.0, noise_level, Tx.shape)  # add gaussian noise

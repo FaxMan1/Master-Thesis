@@ -160,3 +160,9 @@ class DE():
 
         return self.best_agent
 
+def spectrum_alt(signal, sample_rate, N):
+
+    yf = scipy.fft.rfft(signal)
+    xf = scipy.fft.rfftfreq(N, 1/sample_rate)
+    plt.plot(xf, np.abs(yf))
+    plt.show()
