@@ -1,9 +1,6 @@
 import numpy as np
 from Network import NeuralNetwork
 import torch
-import os
-from DE_Pytorch import DE
-# from train_decision_making import generate_train_data, train
 
 def load_params(weight_file, bias_file):
     w_container = np.load(weight_file)
