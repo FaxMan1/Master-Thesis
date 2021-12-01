@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from commpy.filters import rrcosfilter
 from ML_components import ML_decision_making, ML_downsampling, ML_filtering, network_receiver
 from scipy import signal
+import torch
 
 
 class Comms_System:
@@ -10,8 +11,9 @@ class Comms_System:
     def __init__(self, symbol_set, symbol_seq, num_samples=8, beta=0.35):
         self.symbol_set = symbol_set
         self.symbol_seq = symbol_seq
+        self.symbol_seq_tensor = torch.Tensor(symbol_seq)
         self.m = num_samples
-        self.h = self.rrcos2(beta=beta)
+        self.h = self.rrcos(beta=beta)
         self.filter_offset = len(self.h) // 2
         self.start_sample_point = self.filter_offset * 2
         # self.new_values, self.new_values_inv = self.filter_calibration()
@@ -30,31 +32,12 @@ class Comms_System:
 
         return upsampled
 
-    def butter_lowpass(self, cutoff_freq, sampling_rate, order=4):
-
-        nyquist_freq = 0.5 * sampling_rate
-        normalized_cutoff = cutoff_freq / nyquist_freq
-        b, a = signal.butter(order, normalized_cutoff, 'low')
-        return b, a
 
     def plot_spectrum(self, signal_time, sample_rate):
         return plt.magnitude_spectrum(signal_time, Fs=sample_rate, color='C1')
 
+
     def rrcos(self, beta, v=False):
-
-        Ts = self.m  # Assume sample rate is 1 Hz, so sample period is 1, so *symbol* period is 8 # Ts is symbolperiod
-        t = np.arange(-4 * Ts, 4 * Ts+1)  # remember it's not inclusive of final number
-        # h = np.sinc(t / Ts) * np.cos(np.pi * beta * t / Ts) / (1 - (2 * beta * t / Ts) ** 2)
-        h = (np.cos((1+beta) * np.pi *t/Ts) + np.pi * (1-beta)/4/beta * np.sinc((1-beta) * t/Ts))/(1-(4 * beta * t/Ts)**2)
-        if v:
-            plt.figure(figsize=(13, 8))
-            plt.plot(t, h)
-            plt.title('Root Raised Cosine Filter', fontsize=24)
-            plt.show()
-
-        return h
-
-    def rrcos2(self, beta, v=False):
         Ts_ = self.m
         t = np.arange(-4 * Ts_, 4 * Ts_ + 1)  # remember it's not inclusive of final number
         h = rrcosfilter(N=8 * Ts_, alpha=beta, Ts=1, Fs=Ts_)[1]
@@ -65,16 +48,6 @@ class Comms_System:
             plt.show()
 
         return h
-
-    def plot_filtered(self, filtered_signal, title='Filtered Signal', show_sample_points=False):
-        plt.figure(figsize=(13, 8))
-        plt.title(title, fontsize=24)
-        plt.plot(filtered_signal, '.-')
-        # if show_sample_points:
-            # for i in range(len(self.symbol_seq)):
-                # plt.plot([self.start_sample_point+ i * self.m, i * self.m + self.start_sample_point], [min(filtered_signal), max(filtered_signal)], alpha=0.7)
-        plt.grid(True)
-        plt.show()
 
     def downsample(self, Rx):
         downsampled = np.zeros(len(self.symbol_seq))
@@ -130,6 +103,16 @@ class Comms_System:
 
         return received_symbols
 
+
+    def evaluate(self, decisions):
+
+        num_errors = np.sum(np.array(decisions) != np.array(self.symbol_seq))
+        error_rate = num_errors / len(self.symbol_seq)
+        # print('{}% error rate'.format(np.round(error_rate*100, 4)))
+
+        return num_errors, error_rate
+
+
     def test_CS(self, noise_level=2, dec_model=None, block_model=None, filter_model=None,
                 conv_model=None, lowpass=None, v=False):
 
@@ -171,13 +154,11 @@ class Comms_System:
         return euclid_decisions, NN_decisions, block_decisions, filter_decisions, conv_decisions, downsampled
 
 
-    def evaluate(self, decisions):
+def butter_lowpass(cutoff_freq, sampling_rate, order=4):
 
-        num_errors = np.sum(np.array(decisions) != np.array(self.symbol_seq))
-        error_rate = num_errors / len(self.symbol_seq)
-        # print('{}% error rate'.format(np.round(error_rate*100, 4)))
-
-        return num_errors, error_rate
-
+    nyquist_freq = 0.5 * sampling_rate
+    normalized_cutoff = cutoff_freq / nyquist_freq
+    b, a = signal.butter(order, normalized_cutoff, 'low')
+    return b, a
 
 
