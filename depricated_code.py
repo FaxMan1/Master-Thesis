@@ -23,6 +23,34 @@ def filter_calibration(self, noise_level=None):
 
     return new_values, new_values_inv
 
+def rrcos(self, beta, v=False):
+
+    Ts = self.m  # Assume sample rate is 1 Hz, so sample period is 1, so *symbol* period is 8 # Ts is symbolperiod
+    t = np.arange(-4 * Ts, 4 * Ts+1)  # remember it's not inclusive of final number
+    # h = np.sinc(t / Ts) * np.cos(np.pi * beta * t / Ts) / (1 - (2 * beta * t / Ts) ** 2)
+    h = (np.cos((1+beta) * np.pi *t/Ts) + np.pi * (1-beta)/4/beta * np.sinc((1-beta) * t/Ts))/(1-(4 * beta * t/Ts)**2)
+    if v:
+        plt.figure(figsize=(13, 8))
+        plt.plot(t, h)
+        plt.title('Root Raised Cosine Filter', fontsize=24)
+        plt.show()
+
+    return h
+
+
+def plot_filtered(self, filtered_signal, title='Filtered Signal', show_sample_points=False):
+    plt.figure(figsize=(13, 8))
+    plt.title(title, fontsize=24)
+    plt.plot(filtered_signal, '.-')
+    # if show_sample_points:
+        # for i in range(len(self.symbol_seq)):
+            # plt.plot([self.start_sample_point+ i * self.m, i * self.m + self.start_sample_point], [min(filtered_signal), max(filtered_signal)], alpha=0.7)
+    plt.grid(True)
+    plt.show()
+
+
+
+
 # Evolution Without mini-batch
 
 def evolution(self, num_epochs, verbose=False, print_epoch=1000):
