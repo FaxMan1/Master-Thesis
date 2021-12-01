@@ -32,21 +32,10 @@ class DE:
             self.ytest = ytest.long().to(self.device)
             self.testcost = True
 
-    def save_params(self, fname, path='../Conv1DWeights/', agent=None):
-        if agent is None:
-            agent = self.best_agent
-        torch.save(agent.state_dict(), f=path + fname)
-        pass
-
     def save_model(self, fname, path='../Conv1DModels/', agent=None):
         if agent is None:
             agent = self.best_agent
         torch.save(agent, path+fname)
-
-    def load_params(self, fname, path='../Conv1DWeights/'):
-        new_NN = self.pop_func()
-        new_NN.load_state_dict(torch.load(path + fname))
-        return new_NN
 
     def load_model(self, fname, path='../Conv1DModels/'):
         return torch.load(path+fname)
