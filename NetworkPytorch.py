@@ -1,6 +1,8 @@
+import torch
 import torch.nn
-import numpy as np
 import matplotlib.pyplot as plt
+from scipy import signal
+from Comms_System import butter_lowpass
 
 def compute_loss(model, X, y, criterion):
     output = model(X)[0].T
@@ -124,6 +126,51 @@ def train_loop_minibatch(model, optimizer, cost, Xtrain, ytrain, Xtest=None, yte
                     print(loss.item())
 
     return epoch_losses_test, epoch_losses_train
+
+
+def joint_train_loop(NN_tx, NN_rx, X, y, optimizer, cost, epochs=100, sigma=2, lowpass=False, cutoff_freq=1,
+                     plot_iteration=300, sample_rate=8, v=False):
+    epoch_losses_train = torch.zeros(epochs)
+
+    for i in range(epochs):
+
+        # upsampled = CS.upsample(use_torch=True).view(1, 1, -1)
+        Tx = NN_tx(X)
+        if lowpass:
+            # Send filtered signal through lowpass filter
+            b, a = butter_lowpass(cutoff_freq, sample_rate, 4)
+            Tx_low = signal.lfilter(b, a, Tx.detach())
+            Tx_low = torch.Tensor(Tx_low)
+            Tx_low = Tx_low + torch.normal(0.0, sigma, Tx_low.shape)
+            received = NN_rx(Tx_low)[0].T
+        else:
+            Tx = Tx + torch.normal(0.0, sigma, Tx.shape)
+            received = NN_rx(Tx)[0].T
+            # decisions = classes[output.argmax(axis=1)]
+
+        optimizer.zero_grad()
+        loss = cost(received, y.long())
+        loss.backward()
+        optimizer.step()
+
+        epoch_losses_train[i] = loss.item()
+
+        if v and (i + 1) % plot_iteration == 0:
+            print(i, " loss:", loss.item())
+            acc = torch.sum(received.argmax(axis=1) == y) / len(y)
+            print(i, " acc:", acc.item())
+
+            plt.figure()
+            plt.title('Sender Weights')
+            plt.plot(list(NN_tx.parameters())[0].detach()[0][0])
+            plt.show()
+
+            plt.figure()
+            plt.title('Receiver Weights')
+            plt.plot(list(NN_rx.parameters())[0].detach()[0][0])
+            plt.show()
+
+    return epoch_losses_train
 
 
 def train_loop_old(model, optimizer, criterion, X, y, epochs=1000, v=False, plot_iteration=1000):
