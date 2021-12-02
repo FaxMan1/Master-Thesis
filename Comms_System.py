@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from commpy.filters import rrcosfilter
 from ML_components import ML_decision_making, ML_downsampling, ML_filtering, network_receiver
 from scipy import signal
+from scipy.stats import norm
 import torch
 
 
@@ -123,7 +124,7 @@ class Comms_System:
         # upsample symbol sequence and filter it on transmission side
         upsampled = self.upsample(v=v)
         if lowpass is not None:
-            b, a = self.butter_lowpass(lowpass, self.m, 4)
+            b, a = butter_lowpass(lowpass, self.m, 4)
             upsampled = signal.lfilter(b, a, upsampled)
         Tx = np.convolve(upsampled, self.h)
         if v:
@@ -161,4 +162,40 @@ def butter_lowpass(cutoff_freq, sampling_rate, order=4):
     b, a = signal.butter(order, normalized_cutoff, 'low')
     return b, a
 
+
+def SNR_plot(num_symbols=10000, lowpass=None, conv_model=None):
+    symbol_set = [3, 1, -1, -3]  # all symbols that we use
+    symbol_seq = np.random.choice(symbol_set, num_symbols, replace=True)
+    m = 8
+    CS = Comms_System(symbol_set=symbol_set, symbol_seq=symbol_seq, num_samples=m, beta=0.35)
+
+    sigmas = np.linspace(0.75, 4.5, 50)  # sigmas = np.linspace(2.5, 4.5, 500)#
+    SNRs = []
+    euclid_error_rates = []
+    error_rates_NN = []
+    error_rates_NN_blocks = []
+    error_rates_NN_filter = []
+    error_rates_conv = []
+    avg_symbol_energy = np.mean(np.array(symbol_seq) ** 2)
+    gain_factor = np.max(np.convolve(CS.h, CS.h))
+
+    for sigma in sigmas:
+        euclid_decisions, NN_decisions, block_decisions, filter_decisions, conv_decisions, _ = CS.test_CS(
+            noise_level=sigma, lowpass=lowpass, conv_model=conv_model)
+        SNRs.append(avg_symbol_energy * gain_factor / (sigma ** 2))
+        euclid_error_rates.append(CS.evaluate(euclid_decisions)[1])
+        error_rates_NN.append(CS.evaluate(NN_decisions)[1])
+        error_rates_NN_blocks.append(CS.evaluate(block_decisions)[1])
+        error_rates_NN_filter.append(CS.evaluate(filter_decisions)[1])
+        error_rates_conv.append(CS.evaluate(conv_decisions)[1])
+
+    SNRsDB = 10 * np.log10(SNRs)
+    euclid_error_rates = np.array(euclid_error_rates)
+    error_rates_NN = np.array(error_rates_NN)
+    error_rates_NN_blocks = np.array(error_rates_NN_blocks)
+    error_rates_NN_filter = np.array(error_rates_NN_filter)
+    error_rates_conv = np.array(error_rates_conv)
+    error_theory = 1.5 * (1 - norm.cdf(np.sqrt(gain_factor / sigmas ** 2)))  #
+
+    return SNRsDB, euclid_error_rates, error_rates_NN, error_rates_NN_blocks, error_rates_NN_filter, error_rates_conv, error_theory
 
