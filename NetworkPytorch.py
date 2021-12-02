@@ -1,7 +1,7 @@
 import torch
 import torch.nn
+import torchaudio
 import matplotlib.pyplot as plt
-from scipy import signal
 from Comms_System import butter_lowpass
 
 def compute_loss(model, X, y, criterion):
@@ -129,27 +129,38 @@ def train_loop_minibatch(model, optimizer, cost, Xtrain, ytrain, Xtest=None, yte
 
 
 def joint_train_loop(NN_tx, NN_rx, X, y, optimizer, cost, epochs=100, sigma=2, lowpass=False, cutoff_freq=1,
-                     plot_iteration=300, sample_rate=8, v=False):
-    epoch_losses_train = torch.zeros(epochs)
+                     plot_iteration=300, sample_rate=8, use_cuda=False, v=False):
+
+    if torch.cuda.is_available and use_cuda:
+        device = torch.device('cuda')
+        print('Using GPU')
+    else:
+        device = torch.device('cpu')
+        print('Using CPU')
+
+    NN_tx, NN_rx = NN_tx.to(device), NN_rx.to(device)
+    X, y = X.to(device), y.long().to(device)
+
+    epoch_losses_train = torch.zeros(epochs).to(device)
+    b, a = butter_lowpass(cutoff_freq, sample_rate, 4)
+    b = torch.tensor(b, requires_grad=True).float().to(device)
+    a = torch.tensor(a, requires_grad=True).float().to(device)
 
     for i in range(epochs):
 
-        # upsampled = CS.upsample(use_torch=True).view(1, 1, -1)
         Tx = NN_tx(X)
         if lowpass:
             # Send filtered signal through lowpass filter
-            b, a = butter_lowpass(cutoff_freq, sample_rate, 4)
-            Tx_low = signal.lfilter(b, a, Tx.detach())
-            Tx_low = torch.Tensor(Tx_low)
-            Tx_low = Tx_low + torch.normal(0.0, sigma, Tx_low.shape)
+            Tx_low = torchaudio.functional.lfilter(Tx, a, b)
+            Tx_low = Tx_low + torch.normal(0.0, sigma, Tx_low.shape, device=device)
             received = NN_rx(Tx_low)[0].T
         else:
-            Tx = Tx + torch.normal(0.0, sigma, Tx.shape)
+            Tx = Tx + torch.normal(0.0, sigma, Tx.shape, device=device)
             received = NN_rx(Tx)[0].T
             # decisions = classes[output.argmax(axis=1)]
 
         optimizer.zero_grad()
-        loss = cost(received, y.long())
+        loss = cost(received, y)
         loss.backward()
         optimizer.step()
 
@@ -162,13 +173,18 @@ def joint_train_loop(NN_tx, NN_rx, X, y, optimizer, cost, epochs=100, sigma=2, l
 
             plt.figure()
             plt.title('Sender Weights')
-            plt.plot(list(NN_tx.parameters())[0].detach()[0][0])
+            plt.plot(list(NN_tx.parameters())[0].to('cpu').detach()[0][0])
+            plt.show()
+            plt.magnitude_spectrum(list(NN_tx.parameters())[0].to('cpu').detach()[0][0], Fs=sample_rate, color='C1')
             plt.show()
 
             plt.figure()
             plt.title('Receiver Weights')
-            plt.plot(list(NN_rx.parameters())[0].detach()[0][0])
+            plt.plot(list(NN_rx.parameters())[0].to('cpu').detach()[0][0])
             plt.show()
+            plt.magnitude_spectrum(list(NN_rx.parameters())[0].to('cpu').detach()[0][0], Fs=sample_rate, color='C1')
+            plt.show()
+
 
     return epoch_losses_train
 
