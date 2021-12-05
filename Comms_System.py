@@ -212,7 +212,7 @@ def SNR_plot(num_symbols=10000, lowpass=None, conv_model=None, norm_h=True, norm
     if use_gain:
         SNRdbs = np.linspace(0, 18, 50)
     else:
-        SNRdbs = np.linspace(0, 10, 50)
+        SNRdbs = np.linspace(0, 9, 50)
 
     sigmas = []
     euclid_error_rates = []
