@@ -194,3 +194,16 @@ def spectrum_alt(signal, sample_rate, N):
     xf = scipy.fft.rfftfreq(N, 1/sample_rate)
     plt.plot(xf, np.abs(yf))
     plt.show()
+
+
+avg_symbol_energy = np.mean(np.array(self.symbol_seq) ** 2)
+SNR = (avg_symbol_energy) / (noise_level ** 2)
+SNR_with_gain = (avg_symbol_energy * gain_factor) / (noise_level ** 2)
+SNRdb = 10*np.log10(SNR)
+SNRdb_with_gain = 10*np.log10(SNR_with_gain)
+print(SNRdb)
+print(SNRdb_with_gain)
+
+#rev_eng_SNR = 10 ** (noise_level/10)
+#rev_eng_sigma = np.sqrt((avg_symbol_energy * gain_factor)/rev_eng_SNR)
+# noise_level = rev_eng_sigma
