@@ -9,12 +9,14 @@ import torch
 
 class Comms_System:
 
-    def __init__(self, symbol_set, symbol_seq, num_samples=8, beta=0.35):
+    def __init__(self, symbol_set, symbol_seq, num_samples=8, beta=0.35, norm_h=True):
         self.symbol_set = symbol_set
         self.symbol_seq = symbol_seq
         self.symbol_seq_tensor = torch.Tensor(symbol_seq)
         self.m = num_samples
         self.h = self.rrcos(beta=beta)
+        if norm_h:
+            self.h = self.h / np.sqrt(np.sum(np.square(self.h)))  # normalize the filter
         self.filter_offset = len(self.h) // 2
         self.start_sample_point = self.filter_offset * 2
         # self.new_values, self.new_values_inv = self.filter_calibration()
@@ -49,6 +51,24 @@ class Comms_System:
             plt.show()
 
         return h
+
+    def SNR_to_sigma(self, SNRdb):
+        avg_symbol_energy = np.mean(np.array(self.symbol_seq) ** 2)
+        gain_factor = np.max(np.convolve(self.h, self.h))
+        SNR = 10 ** (SNRdb / 10)
+        sigma = np.sqrt((avg_symbol_energy * gain_factor) / SNR)
+        return sigma
+
+    def sigma_to_SNR(self, sigma):
+
+        avg_symbol_energy = np.mean(np.array(self.symbol_seq) ** 2)
+        gain_factor = np.max(np.convolve(self.h, self.h))
+        SNR = avg_symbol_energy / (sigma ** 2)
+        SNR_with_gain = (avg_symbol_energy * gain_factor) / (sigma ** 2)
+        SNRdb = 10 * np.log10(SNR)
+        SNRdb_with_gain = 10 * np.log10(SNR_with_gain)
+
+        return SNRdb, SNRdb_with_gain
 
     def downsample(self, Rx):
         downsampled = np.zeros(len(self.symbol_seq))
@@ -87,20 +107,27 @@ class Comms_System:
         return chosen_symbols
 
 
-    def transmission(self, mode='euclidean', noise_level=2):
+    def transmission(self, mode='euclidean', noise_level=2, norm_signal=False, model=None):
 
         gain_factor = np.max(np.convolve(self.h, self.h))
         upsampled = self.upsample()
 
         Tx = np.convolve(upsampled, self.h)
+
+        if norm_signal:
+            Tx = Tx / np.sqrt(np.mean(np.square(Tx)))
+
         Tx = Tx + np.random.normal(0.0, noise_level, Tx.shape)  # add gaussian noise
         Rx = np.convolve(Tx, self.h)
-        downsampled = self.downsample(Rx)/gain_factor
+        if norm_signal:
+            downsampled = self.downsample(Rx)
+        else:
+            downsampled = self.downsample(Rx)/gain_factor
 
         if mode == 'euclidean':
             received_symbols = self.decision_making(downsampled, False)
         elif mode == 'network':
-            received_symbols = network_receiver(Tx, self.symbol_set)
+            received_symbols = network_receiver(Tx, self.symbol_set, model=model)
 
         return received_symbols
 
@@ -115,11 +142,12 @@ class Comms_System:
 
 
     def test_CS(self, noise_level=2, dec_model=None, block_model=None, filter_model=None,
-                conv_model=None, lowpass=None, v=False):
+                conv_model=None, lowpass=None, v=False, norm_signal=False):
 
-        # calibrate
         gain_factor = np.max(np.convolve(self.h, self.h))
         gain_factor_tx = np.max(self.h)
+        if v:
+            print(gain_factor)
 
         # upsample symbol sequence and filter it on transmission side
         upsampled = self.upsample(v=v)
@@ -130,6 +158,9 @@ class Comms_System:
         if v:
             self.plot_filtered(Tx)
 
+        if norm_signal:
+            # normalize filtered signal before sending
+            Tx = Tx / np.sqrt(np.mean(np.square(Tx)))
         # Transmit the filtered signal (i.e. add noise)
         Tx = Tx + np.random.normal(0.0, noise_level, Tx.shape)  # add gaussian noise
 
@@ -142,7 +173,10 @@ class Comms_System:
             self.plot_filtered(Rx, title='Received Signal')
 
         # Downsample the signal on the receiver side
-        downsampled = self.downsample(Rx)/gain_factor
+        if norm_signal:
+            downsampled = self.downsample(Rx)
+        else:
+            downsampled = self.downsample(Rx)/gain_factor
 
         # Decision-making downsampled values
         euclid_decisions = self.decision_making(downsampled, False)
@@ -163,13 +197,14 @@ def butter_lowpass(cutoff_freq, sampling_rate, order=4):
     return b, a
 
 
-def SNR_plot(num_symbols=10000, lowpass=None, conv_model=None):
+def SNR_plot(num_symbols=10000, lowpass=None, conv_model=None, norm_h=True, norm_signal=False, use_gain=True):
     symbol_set = [3, 1, -1, -3]  # all symbols that we use
     symbol_seq = np.random.choice(symbol_set, num_symbols, replace=True)
     m = 8
-    CS = Comms_System(symbol_set=symbol_set, symbol_seq=symbol_seq, num_samples=m, beta=0.35)
+    CS = Comms_System(symbol_set=symbol_set, symbol_seq=symbol_seq, num_samples=m, beta=0.35, norm_h=norm_h)
 
-    sigmas = np.linspace(0.75, 4.5, 50)  # sigmas = np.linspace(2.5, 4.5, 500)#
+
+    sigmas = np.linspace(CS.SNR_to_sigma(18), CS.SNR_to_sigma(2), 50)  # sigmas = np.linspace(2.5, 4.5, 500)#
     SNRs = []
     euclid_error_rates = []
     error_rates_NN = []
@@ -177,12 +212,19 @@ def SNR_plot(num_symbols=10000, lowpass=None, conv_model=None):
     error_rates_NN_filter = []
     error_rates_conv = []
     avg_symbol_energy = np.mean(np.array(symbol_seq) ** 2)
+    print('Avg symbol energy', avg_symbol_energy)
     gain_factor = np.max(np.convolve(CS.h, CS.h))
+    print('gain', gain_factor)
+
 
     for sigma in sigmas:
         euclid_decisions, NN_decisions, block_decisions, filter_decisions, conv_decisions, _ = CS.test_CS(
-            noise_level=sigma, lowpass=lowpass, conv_model=conv_model)
-        SNRs.append(avg_symbol_energy * gain_factor / (sigma ** 2))
+            noise_level=sigma, lowpass=lowpass, conv_model=conv_model, norm_signal=norm_signal)
+        if use_gain:
+            SNR = (avg_symbol_energy * gain_factor) / (sigma ** 2)
+        else:
+            SNR = avg_symbol_energy / (sigma ** 2)
+        SNRs.append(SNR) # gain_factor
         euclid_error_rates.append(CS.evaluate(euclid_decisions)[1])
         error_rates_NN.append(CS.evaluate(NN_decisions)[1])
         error_rates_NN_blocks.append(CS.evaluate(block_decisions)[1])
@@ -195,7 +237,10 @@ def SNR_plot(num_symbols=10000, lowpass=None, conv_model=None):
     error_rates_NN_blocks = np.array(error_rates_NN_blocks)
     error_rates_NN_filter = np.array(error_rates_NN_filter)
     error_rates_conv = np.array(error_rates_conv)
-    error_theory = 1.5 * (1 - norm.cdf(np.sqrt(gain_factor / sigmas ** 2)))  #
+    if use_gain:
+        error_theory = 1.5 * (1 - norm.cdf(np.sqrt(gain_factor / sigmas ** 2)))  #
+    else:
+        error_theory = 1.5 * (1 - norm.cdf(np.sqrt(1 / sigmas ** 2)))  #
 
     return SNRsDB, euclid_error_rates, error_rates_NN, error_rates_NN_blocks, error_rates_NN_filter, error_rates_conv, error_theory
 
