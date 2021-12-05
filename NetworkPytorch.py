@@ -37,6 +37,7 @@ def train_loop(model, optimizer, cost, Xtrain, ytrain, Xtest=None, ytest=None, e
         loss = cost(output, labels.long())
         loss.backward()
         optimizer.step()
+        # model.
 
         if eval:
             model.eval()
@@ -149,6 +150,7 @@ def joint_train_loop(NN_tx, NN_rx, X, y, optimizer, cost, epochs=100, sigma=2, l
     for i in range(epochs):
 
         Tx = NN_tx(X)
+        #Tx = Tx / torch.sqrt(torch.mean(torch.square(Tx)))
         if lowpass:
             # Send filtered signal through lowpass filter
             Tx_low = torchaudio.functional.lfilter(Tx, a, b)
