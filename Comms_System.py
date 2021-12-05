@@ -52,14 +52,18 @@ class Comms_System:
 
         return h
 
-    def SNR_to_sigma(self, SNRdb):
-        avg_symbol_energy = np.mean(np.array(self.symbol_seq) ** 2)
-        gain_factor = np.max(np.convolve(self.h, self.h))
+    def SNRdb_to_sigma(self, SNRdb, energy=None, use_gain=False):
+        if energy is None:
+            energy = np.mean(np.array(self.symbol_seq) ** 2)
         SNR = 10 ** (SNRdb / 10)
-        sigma = np.sqrt((avg_symbol_energy * gain_factor) / SNR)
+        if use_gain:
+            gain_factor = np.max(np.convolve(self.h, self.h))
+            sigma = np.sqrt(energy * gain_factor / SNR)  # * gain_factor
+        else:
+            sigma = np.sqrt(energy / SNR)  # * gain_factor
         return sigma
 
-    def sigma_to_SNR(self, sigma):
+    def sigma_to_SNRdb(self, sigma):
 
         avg_symbol_energy = np.mean(np.array(self.symbol_seq) ** 2)
         gain_factor = np.max(np.convolve(self.h, self.h))
@@ -110,12 +114,13 @@ class Comms_System:
     def transmission(self, mode='euclidean', noise_level=2, norm_signal=False, model=None):
 
         gain_factor = np.max(np.convolve(self.h, self.h))
+        print("E:", gain_factor)
         upsampled = self.upsample()
 
         Tx = np.convolve(upsampled, self.h)
 
         if norm_signal:
-            Tx = Tx / np.sqrt(np.mean(np.square(Tx)))
+            Tx = Tx / np.sqrt(np.mean(np.square(Tx))) #np.sqrt(np.mean(np.square(Tx)))
 
         Tx = Tx + np.random.normal(0.0, noise_level, Tx.shape)  # add gaussian noise
         Rx = np.convolve(Tx, self.h)
@@ -197,15 +202,19 @@ def butter_lowpass(cutoff_freq, sampling_rate, order=4):
     return b, a
 
 
-def SNR_plot(num_symbols=10000, lowpass=None, conv_model=None, norm_h=True, norm_signal=False, use_gain=True):
+def SNR_plot(num_symbols=10000, lowpass=None, conv_model=None, norm_h=True, norm_signal=False, use_gain=False):
     symbol_set = [3, 1, -1, -3]  # all symbols that we use
     symbol_seq = np.random.choice(symbol_set, num_symbols, replace=True)
     m = 8
     CS = Comms_System(symbol_set=symbol_set, symbol_seq=symbol_seq, num_samples=m, beta=0.35, norm_h=norm_h)
 
+    #sigmas = np.linspace(CS.SNR_to_sigma(18), CS.SNR_to_sigma(2), 50)  # sigmas = np.linspace(2.5, 4.5, 500)#
+    if use_gain:
+        SNRdbs = np.linspace(0, 18, 50)
+    else:
+        SNRdbs = np.linspace(0, 10, 50)
 
-    sigmas = np.linspace(CS.SNR_to_sigma(18), CS.SNR_to_sigma(2), 50)  # sigmas = np.linspace(2.5, 4.5, 500)#
-    SNRs = []
+    sigmas = []
     euclid_error_rates = []
     error_rates_NN = []
     error_rates_NN_blocks = []
@@ -217,30 +226,27 @@ def SNR_plot(num_symbols=10000, lowpass=None, conv_model=None, norm_h=True, norm
     print('gain', gain_factor)
 
 
-    for sigma in sigmas:
+    #for sigma in sigmas:
+    for SNRdb in SNRdbs:
+        sigma = CS.SNRdb_to_sigma(SNRdb, avg_symbol_energy, use_gain=use_gain)
         euclid_decisions, NN_decisions, block_decisions, filter_decisions, conv_decisions, _ = CS.test_CS(
             noise_level=sigma, lowpass=lowpass, conv_model=conv_model, norm_signal=norm_signal)
-        if use_gain:
-            SNR = (avg_symbol_energy * gain_factor) / (sigma ** 2)
-        else:
-            SNR = avg_symbol_energy / (sigma ** 2)
-        SNRs.append(SNR) # gain_factor
+
+        sigmas.append(sigma)
         euclid_error_rates.append(CS.evaluate(euclid_decisions)[1])
         error_rates_NN.append(CS.evaluate(NN_decisions)[1])
         error_rates_NN_blocks.append(CS.evaluate(block_decisions)[1])
         error_rates_NN_filter.append(CS.evaluate(filter_decisions)[1])
         error_rates_conv.append(CS.evaluate(conv_decisions)[1])
 
-    SNRsDB = 10 * np.log10(SNRs)
+    #SNRsDB = 10 * np.log10(SNRs)
     euclid_error_rates = np.array(euclid_error_rates)
     error_rates_NN = np.array(error_rates_NN)
     error_rates_NN_blocks = np.array(error_rates_NN_blocks)
     error_rates_NN_filter = np.array(error_rates_NN_filter)
     error_rates_conv = np.array(error_rates_conv)
-    if use_gain:
-        error_theory = 1.5 * (1 - norm.cdf(np.sqrt(gain_factor / sigmas ** 2)))  #
-    else:
-        error_theory = 1.5 * (1 - norm.cdf(np.sqrt(1 / sigmas ** 2)))  #
+    sigmas = np.array(sigmas)
+    error_theory = 1.5 * (1 - norm.cdf(np.sqrt(gain_factor / sigmas ** 2)))  #
 
-    return SNRsDB, euclid_error_rates, error_rates_NN, error_rates_NN_blocks, error_rates_NN_filter, error_rates_conv, error_theory
+    return SNRdbs, euclid_error_rates, error_rates_NN, error_rates_NN_blocks, error_rates_NN_filter, error_rates_conv, error_theory
 
