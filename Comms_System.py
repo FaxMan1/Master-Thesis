@@ -111,19 +111,34 @@ class Comms_System:
         return chosen_symbols
 
 
-    def transmission(self, mode='euclidean', noise_level=2, norm_signal=False, model=None):
+    def transmission(self, mode='euclidean', noise_level=2, norm_signal=False, model=None, v=True):
 
+        # calculate gain_factor
         gain_factor = np.max(np.convolve(self.h, self.h))
-        print("E:", gain_factor)
+        energy = np.mean(np.array(self.symbol_seq) ** 2)
+        if v:
+            print("E:", gain_factor)
+            print('Ratio:', energy * gain_factor/noise_level**2)
+        # upsample
         upsampled = self.upsample()
 
+        # filter with rrcos
         Tx = np.convolve(upsampled, self.h)
 
+        # normalize
         if norm_signal:
             Tx = Tx / np.sqrt(np.mean(np.square(Tx))) #np.sqrt(np.mean(np.square(Tx)))
 
+        # Transmit / add noise
         Tx = Tx + np.random.normal(0.0, noise_level, Tx.shape)  # add gaussian noise
-        Rx = np.convolve(Tx, self.h)
+
+        # filter with rrcos on receiver
+        if norm_signal:
+            Rx = np.convolve(Tx, self.h) * np.sqrt(np.mean(self.symbol_seq**2))
+        else:
+            Rx = np.convolve(Tx, self.h)
+
+        # downsample
         if norm_signal:
             downsampled = self.downsample(Rx)
         else:
@@ -209,10 +224,7 @@ def SNR_plot(num_symbols=10000, lowpass=None, conv_model=None, norm_h=True, norm
     CS = Comms_System(symbol_set=symbol_set, symbol_seq=symbol_seq, num_samples=m, beta=0.35, norm_h=norm_h)
 
     #sigmas = np.linspace(CS.SNR_to_sigma(18), CS.SNR_to_sigma(2), 50)  # sigmas = np.linspace(2.5, 4.5, 500)#
-    if use_gain:
-        SNRdbs = np.linspace(0, 18, 50)
-    else:
-        SNRdbs = np.linspace(0, 9, 50)
+    SNRdbs = np.linspace(0, 18, 50)
 
     sigmas = []
     euclid_error_rates = []
@@ -249,4 +261,61 @@ def SNR_plot(num_symbols=10000, lowpass=None, conv_model=None, norm_h=True, norm
     error_theory = 1.5 * (1 - norm.cdf(np.sqrt(gain_factor / sigmas ** 2)))  #
 
     return SNRdbs, euclid_error_rates, error_rates_NN, error_rates_NN_blocks, error_rates_NN_filter, error_rates_conv, error_theory
+
+def SNR_plot_vanilla(num_symbols=10000, norm_h=False, normalized_network=False, norm_signal=False, use_gain=True, model=None):
+    symbol_set = [3, 1, -1, -3]  # all symbols that we use
+    symbol_seq = np.random.choice(symbol_set, num_symbols, replace=True)
+    m = 8
+    CS = Comms_System(symbol_set=symbol_set, symbol_seq=symbol_seq, num_samples=m, beta=0.35, norm_h=norm_h)
+
+    SNRdbs = np.linspace(0, 18, 50)
+
+    sigmas = []
+    euclid_error_rates = []
+    network_error_rates = []
+    avg_symbol_energy = np.mean(np.array(symbol_seq) ** 2)
+    print('Avg symbol energy', avg_symbol_energy)
+    gain_factor = np.max(np.convolve(CS.h, CS.h))
+    print('gain', gain_factor)
+
+    for SNRdb in SNRdbs:
+        if normalized_network:
+            sigma_euclid = CS.SNRdb_to_sigma(SNRdb, avg_symbol_energy, use_gain=True) # symbol energy og gain
+            sigma_network = CS.SNRdb_to_sigma(SNRdb, 8, use_gain=False) # fordi vi har normaliseret er sample energi sat til 1, og vi har 8 samples pr symbol, er avg_symbol_energy så 1*8
+            euclid_decisions = CS.transmission(noise_level=sigma_euclid, norm_signal=False, v=False)
+            network_decisions = CS.transmission(mode='network', noise_level=sigma_network, norm_signal=True, v=False, model=model)
+            sigmas.append(sigma_euclid)
+        else:
+            sigma = CS.SNRdb_to_sigma(SNRdb, avg_symbol_energy, use_gain=True)
+            euclid_decisions = CS.transmission(noise_level=sigma, norm_signal=False, v=False)
+            network_decisions = CS.transmission(mode='network', noise_level=sigma, norm_signal=False, v=False, model=model)
+            sigmas.append(sigma)
+
+        euclid_error_rates.append(CS.evaluate(euclid_decisions)[1])
+        network_error_rates.append(CS.evaluate(network_decisions)[1])
+
+    sigmas = np.array(sigmas)
+    error_theory = 1.5 * (1 - norm.cdf(np.sqrt(gain_factor / sigmas ** 2)))
+    euclid_error_rates = np.array(euclid_error_rates)
+    network_error_rates = np.array(network_error_rates)
+
+    return SNRdbs, euclid_error_rates, network_error_rates, error_theory
+
+    plt.figure(figsize=(18, 11))
+    plt.title('Noise Plot', fontsize=24)
+    plt.xlabel('SNR (dB)', fontsize=20)
+    plt.ylabel('$P_e$', fontsize=20)
+    plt.semilogy(SNRdbs, euclid_error_rates)
+    plt.semilogy(SNRdbs, error_theory)
+    plt.semilogy(SNRdbs, network_error_rates)
+
+    legend = ['Euclid', 'Theory']
+    plt.legend(legend, fontsize=16)
+    plt.show()
+
+
+
+
+
+
 
