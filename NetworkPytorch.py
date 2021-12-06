@@ -3,6 +3,7 @@ import torch.nn
 import torchaudio
 import matplotlib.pyplot as plt
 from Comms_System import butter_lowpass
+import numpy as np
 
 def compute_loss(model, X, y, criterion):
     output = model(X)[0].T
@@ -129,8 +130,12 @@ def train_loop_minibatch(model, optimizer, cost, Xtrain, ytrain, Xtest=None, yte
     return epoch_losses_test, epoch_losses_train
 
 
-def joint_train_loop(NN_tx, NN_rx, X, y, optimizer, cost, epochs=100, sigma=2, lowpass=False, cutoff_freq=1,
+def joint_train_loop(NN_tx, NN_rx, X, y, optimizer, cost, epochs=100, SNRdb=10, lowpass=False, cutoff_freq=1,
                      plot_iteration=300, sample_rate=8, use_cuda=False, v=False):
+
+    SNR = 10 ** (SNRdb / 10)
+    sigma = np.sqrt(8 / SNR)
+    print(sigma)
 
     if torch.cuda.is_available and use_cuda:
         device = torch.device('cuda')
@@ -150,16 +155,11 @@ def joint_train_loop(NN_tx, NN_rx, X, y, optimizer, cost, epochs=100, sigma=2, l
     for i in range(epochs):
 
         Tx = NN_tx(X)
-        #Tx = Tx / torch.sqrt(torch.mean(torch.square(Tx)))
-        if lowpass:
-            # Send filtered signal through lowpass filter
-            Tx_low = torchaudio.functional.lfilter(Tx, a, b)
-            Tx_low = Tx_low + torch.normal(0.0, sigma, Tx_low.shape, device=device)
-            received = NN_rx(Tx_low)[0].T
-        else:
-            Tx = Tx + torch.normal(0.0, sigma, Tx.shape, device=device)
-            received = NN_rx(Tx)[0].T
-            # decisions = classes[output.argmax(axis=1)]
+        # Send filtered signal through lowpass filter
+        Tx_low = torchaudio.functional.lfilter(Tx, a, b)
+        Tx_low = Tx_low / torch.sqrt(torch.mean(torch.square(Tx_low))) # normalize
+        Tx_low = Tx_low + torch.normal(0.0, sigma, Tx_low.shape, device=device)
+        received = NN_rx(Tx_low)[0].T
 
         optimizer.zero_grad()
         loss = cost(received, y)

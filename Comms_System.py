@@ -262,7 +262,7 @@ def SNR_plot(num_symbols=10000, lowpass=None, conv_model=None, norm_h=True, norm
 
     return SNRdbs, euclid_error_rates, error_rates_NN, error_rates_NN_blocks, error_rates_NN_filter, error_rates_conv, error_theory
 
-def SNR_plot_vanilla(num_symbols=10000, norm_h=False, normalized_network=False, norm_signal=False, use_gain=True, model=None):
+def SNR_plot_vanilla(num_symbols=10000, norm_h=False, normalized_network=False, model=None):
     symbol_set = [3, 1, -1, -3]  # all symbols that we use
     symbol_seq = np.random.choice(symbol_set, num_symbols, replace=True)
     m = 8
@@ -300,18 +300,6 @@ def SNR_plot_vanilla(num_symbols=10000, norm_h=False, normalized_network=False, 
     network_error_rates = np.array(network_error_rates)
 
     return SNRdbs, euclid_error_rates, network_error_rates, error_theory
-
-    plt.figure(figsize=(18, 11))
-    plt.title('Noise Plot', fontsize=24)
-    plt.xlabel('SNR (dB)', fontsize=20)
-    plt.ylabel('$P_e$', fontsize=20)
-    plt.semilogy(SNRdbs, euclid_error_rates)
-    plt.semilogy(SNRdbs, error_theory)
-    plt.semilogy(SNRdbs, network_error_rates)
-
-    legend = ['Euclid', 'Theory']
-    plt.legend(legend, fontsize=16)
-    plt.show()
 
 
 
