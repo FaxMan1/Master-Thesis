@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from commpy.filters import rrcosfilter
 from ML_components import ML_decision_making, ML_downsampling, ML_filtering, network_receiver
+from ML_components import network_sender_receiver
 from scipy import signal
 from scipy.stats import norm
 import torch
@@ -209,6 +210,33 @@ class Comms_System:
         return euclid_decisions, NN_decisions, block_decisions, filter_decisions, conv_decisions, downsampled
 
 
+    def transmit_joint(self, sigma, cutoff_freq=2):
+
+        upsampled = self.upsample()
+        decisions = network_sender_receiver(upsampled, self.symbol_set, sigma, cutoff_freq=cutoff_freq)
+
+        return decisions
+
+    def transmission_new(self, sigma, mode='euclidean', norm_signal=False, model=None, v=False):
+
+        gain_factor = np.max(np.convolve(self.h, self.h))
+        upsampled = self.upsample()
+        Tx = np.convolve(upsampled, self.h)
+
+        if mode == 'network':
+            Tx = Tx / np.sqrt(np.mean(np.square(Tx)))
+            Tx = Tx + np.random.normal(0.0, sigma, Tx.shape)
+            decisions = network_receiver(Tx, self.symbol_set, model=model)
+            return decisions
+
+        elif mode == 'euclidean':
+            Rx = np.convolve(Tx, self.h)
+            downsampled = self.downsample(Rx)/gain_factor
+            decisions = self.decision_making(downsampled, False)
+
+        return decisions
+
+
 def butter_lowpass(cutoff_freq, sampling_rate, order=4):
 
     nyquist_freq = 0.5 * sampling_rate
@@ -262,7 +290,7 @@ def SNR_plot(num_symbols=10000, lowpass=None, conv_model=None, norm_h=True, norm
 
     return SNRdbs, euclid_error_rates, error_rates_NN, error_rates_NN_blocks, error_rates_NN_filter, error_rates_conv, error_theory
 
-def SNR_plot_vanilla(num_symbols=10000, norm_h=False, normalized_network=False, model=None):
+def SNR_plot_new(num_symbols=10000, norm_h=False, normalized_networks=False, model=None):
     symbol_set = [3, 1, -1, -3]  # all symbols that we use
     symbol_seq = np.random.choice(symbol_set, num_symbols, replace=True)
     m = 8
@@ -273,17 +301,19 @@ def SNR_plot_vanilla(num_symbols=10000, norm_h=False, normalized_network=False, 
     sigmas = []
     euclid_error_rates = []
     network_error_rates = []
+    joint_error_rates = []
     avg_symbol_energy = np.mean(np.array(symbol_seq) ** 2)
     print('Avg symbol energy', avg_symbol_energy)
     gain_factor = np.max(np.convolve(CS.h, CS.h))
     print('gain', gain_factor)
 
     for SNRdb in SNRdbs:
-        if normalized_network:
+        if normalized_networks:
             sigma_euclid = CS.SNRdb_to_sigma(SNRdb, avg_symbol_energy, use_gain=True) # symbol energy og gain
-            sigma_network = CS.SNRdb_to_sigma(SNRdb, 8, use_gain=False) # fordi vi har normaliseret er sample energi sat til 1, og vi har 8 samples pr symbol, er avg_symbol_energy så 1*8
+            sigma_network = CS.SNRdb_to_sigma(SNRdb, 8, use_gain=False) # fordi vi har normaliseret er sample energi sat til 1, og vi har 8 samples pr symbol, altså er avg_symbol_energy så 1*8
             euclid_decisions = CS.transmission(noise_level=sigma_euclid, norm_signal=False, v=False)
             network_decisions = CS.transmission(mode='network', noise_level=sigma_network, norm_signal=True, v=False, model=model)
+            joint_decisions = CS.transmit_joint(sigma_network, cutoff_freq=2)
             sigmas.append(sigma_euclid)
         else:
             sigma = CS.SNRdb_to_sigma(SNRdb, avg_symbol_energy, use_gain=True)
@@ -293,6 +323,7 @@ def SNR_plot_vanilla(num_symbols=10000, norm_h=False, normalized_network=False, 
 
         euclid_error_rates.append(CS.evaluate(euclid_decisions)[1])
         network_error_rates.append(CS.evaluate(network_decisions)[1])
+        joint_error_rates.append(CS.evaluate(joint_decisions)[1])
 
     sigmas = np.array(sigmas)
     error_theory = 1.5 * (1 - norm.cdf(np.sqrt(gain_factor / sigmas ** 2)))
