@@ -2,8 +2,7 @@ import numpy as np
 from Network import NeuralNetwork
 import torch
 import torchaudio
-from scipy import signal
-
+from filters import butter_lowpass
 
 def load_params(weight_file, bias_file):
     w_container = np.load(weight_file)
@@ -17,24 +16,17 @@ def load_params(weight_file, bias_file):
 
     return weights, biases, sizes
 
-def butter_lowpass(cutoff_freq, sampling_rate, order=4):
 
-    nyquist_freq = 0.5 * sampling_rate
-    normalized_cutoff = cutoff_freq / nyquist_freq
-    b, a = signal.butter(order, normalized_cutoff, 'low')
-    return b, a
+def network_sender_receiver(upsampled, classes, sigma=0.89, cutoff_freq=2, path='../Joint_Models/', models=None):
 
-
-
-def network_sender_receiver(upsampled, classes, sigma=0.89, cutoff_freq=2, path='../Joint_Models/',  v=False):
-    #SNR = 10 ** (SNRdb / 10)
-    #sigma = np.sqrt(8 / SNR)
     classes = np.array(classes)
-
     upsampled = torch.Tensor(upsampled).view(1, 1, -1)
 
-    NN_tx = torch.load(path + 'best_NN_tx')
-    NN_rx = torch.load(path + 'best_NN_Rx')
+    if models is None:
+        NN_tx = torch.load(path + 'best_NN_tx')
+        NN_rx = torch.load(path + 'best_NN_Rx')
+    else:
+        NN_tx, NN_rx = models
 
     b, a = butter_lowpass(cutoff_freq, 8, 4)
     b = torch.tensor(b, requires_grad=True).float()
@@ -72,8 +64,8 @@ def ML_filtering(blocks, classes, model=None):
 def network_receiver(Rx, classes, model=None, path='../Conv1DModels/'):
 
     X = torch.tensor(Rx).view(1, 1, -1).float()
-
     classes = np.array(classes)
+
     if model is None:
         model = torch.load(path + 'best_Conv1DModel')
 

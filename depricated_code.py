@@ -207,3 +207,160 @@ print(SNRdb_with_gain)
 #rev_eng_SNR = 10 ** (noise_level/10)
 #rev_eng_sigma = np.sqrt((avg_symbol_energy * gain_factor)/rev_eng_SNR)
 # noise_level = rev_eng_sigma
+
+#sigma = 0.35 # corresponds roughly to SNR 16 (old sigma=1)
+#sigma = 0.7 # corresponds roughly to SNR 10 (old sigma=2)
+#sigma = 1.06 # corresponds roughly to SNR 6.4 (old sigma=3)
+
+
+
+def transmission(self, mode='euclidean', noise_level=2, norm_signal=False, model=None, v=True):
+    # calculate gain_factor
+    gain_factor = np.max(np.convolve(self.h, self.h))
+    energy = np.mean(np.array(self.symbol_seq) ** 2)
+    if v:
+        print("E:", gain_factor)
+        print('Ratio:', energy * gain_factor / noise_level ** 2)
+    # upsample
+    upsampled = self.upsample()
+
+    # filter with rrcos
+    Tx = np.convolve(upsampled, self.h)
+
+    # normalize
+    if norm_signal:
+        Tx = Tx / np.sqrt(np.mean(np.square(Tx)))  # np.sqrt(np.mean(np.square(Tx)))
+
+    # Transmit / add noise
+    Tx = Tx + np.random.normal(0.0, noise_level, Tx.shape)  # add gaussian noise
+
+    # filter with rrcos on receiver
+    if norm_signal:
+        Rx = np.convolve(Tx, self.h) * np.sqrt(np.mean(self.symbol_seq ** 2))
+    else:
+        Rx = np.convolve(Tx, self.h)
+
+    # downsample
+    if norm_signal:
+        downsampled = self.downsample(Rx)
+    else:
+        downsampled = self.downsample(Rx) / gain_factor
+
+    if mode == 'euclidean':
+        received_symbols = self.decision_making(downsampled, False)
+    elif mode == 'network':
+        received_symbols = network_receiver(Tx, self.symbol_set, model=model)
+
+    return received_symbols
+
+
+def SNR_plot(num_symbols=10000, lowpass=None, conv_model=None, norm_h=True, norm_signal=False, use_gain=False):
+    symbol_set = [3, 1, -1, -3]  # all symbols that we use
+    symbol_seq = np.random.choice(symbol_set, num_symbols, replace=True)
+    m = 8
+    CS = Comms_System(symbol_set=symbol_set, symbol_seq=symbol_seq, num_samples=m, beta=0.35, norm_h=norm_h)
+
+    #sigmas = np.linspace(CS.SNR_to_sigma(18), CS.SNR_to_sigma(2), 50)  # sigmas = np.linspace(2.5, 4.5, 500)#
+    SNRdbs = np.linspace(0, 18, 50)
+
+    sigmas = []
+    euclid_error_rates = []
+    error_rates_NN = []
+    error_rates_NN_blocks = []
+    error_rates_NN_filter = []
+    error_rates_conv = []
+    avg_symbol_energy = np.mean(np.array(symbol_seq) ** 2)
+    print('Avg symbol energy', avg_symbol_energy)
+    gain_factor = np.max(np.convolve(CS.h, CS.h))
+    print('gain', gain_factor)
+
+
+    #for sigma in sigmas:
+    for SNRdb in SNRdbs:
+        sigma = CS.SNRdb_to_sigma(SNRdb, avg_symbol_energy, use_gain=use_gain)
+        euclid_decisions, NN_decisions, block_decisions, filter_decisions, conv_decisions, _ = CS.test_CS(
+            noise_level=sigma, lowpass=lowpass, conv_model=conv_model, norm_signal=norm_signal)
+
+        sigmas.append(sigma)
+        euclid_error_rates.append(CS.evaluate(euclid_decisions)[1])
+        error_rates_NN.append(CS.evaluate(NN_decisions)[1])
+        error_rates_NN_blocks.append(CS.evaluate(block_decisions)[1])
+        error_rates_NN_filter.append(CS.evaluate(filter_decisions)[1])
+        error_rates_conv.append(CS.evaluate(conv_decisions)[1])
+
+    #SNRsDB = 10 * np.log10(SNRs)
+    euclid_error_rates = np.array(euclid_error_rates)
+    error_rates_NN = np.array(error_rates_NN)
+    error_rates_NN_blocks = np.array(error_rates_NN_blocks)
+    error_rates_NN_filter = np.array(error_rates_NN_filter)
+    error_rates_conv = np.array(error_rates_conv)
+    sigmas = np.array(sigmas)
+    error_theory = 1.5 * (1 - norm.cdf(np.sqrt(gain_factor / sigmas ** 2)))  #
+
+    return SNRdbs, euclid_error_rates, error_rates_NN, error_rates_NN_blocks, error_rates_NN_filter, error_rates_conv, error_theory
+
+
+def test_CS(self, noise_level=2, dec_model=None, block_model=None, filter_model=None,
+        conv_model=None, lowpass=None, v=False, norm_signal=False):
+
+    gain_factor = np.max(np.convolve(self.h, self.h))
+    gain_factor_tx = np.max(self.h)
+    if v:
+        print(gain_factor)
+
+    # upsample symbol sequence and filter it on transmission side
+    upsampled = self.upsample(v=v)
+    if lowpass is not None:
+        b, a = butter_lowpass(lowpass, self.m, 4)
+        upsampled = signal.lfilter(b, a, upsampled)
+    Tx = np.convolve(upsampled, self.h)
+    if v:
+        self.plot_filtered(Tx)
+
+    if norm_signal:
+        # normalize filtered signal before sending
+        Tx = Tx / np.sqrt(np.mean(np.square(Tx)))
+    # Transmit the filtered signal (i.e. add noise)
+    Tx = Tx + np.random.normal(0.0, noise_level, Tx.shape)  # add gaussian noise
+
+    # Filter on receiver side
+    Rx = np.convolve(Tx, self.h)
+    blocks = self.get_periods(Rx/gain_factor)
+    filter_blocks = self.get_signal_in_blocks(Tx/gain_factor_tx)
+    if v:
+        self.plot_filtered(Tx, title='Filtered Signal with Noise')
+        self.plot_filtered(Rx, title='Received Signal')
+
+    # Downsample the signal on the receiver side
+    if norm_signal:
+        downsampled = self.downsample(Rx)
+    else:
+        downsampled = self.downsample(Rx)/gain_factor
+
+    # Decision-making downsampled values
+    euclid_decisions = self.decision_making(downsampled, False)
+    NN_decisions = ML_decision_making(downsampled, self.symbol_set, model=dec_model)
+    block_decisions = ML_downsampling(blocks, self.symbol_set, model=block_model)
+    filter_decisions = ML_filtering(filter_blocks, self.symbol_set, model=filter_model)
+    conv_decisions = network_receiver(Tx, self.symbol_set, model=conv_model)
+
+    return euclid_decisions, NN_decisions, block_decisions, filter_decisions, conv_decisions, downsampled
+
+
+'''if norm_nets:
+            sigma_euclid = CS.SNRdb_to_sigma(SNRdb, avg_symbol_energy, use_gain=True) # symbol energy og gain
+            sigma_network = CS.SNRdb_to_sigma(SNRdb, 8, use_gain=False)
+            euclid_decisions = CS.transmission(sigma_euclid, mode='euclidean')
+            if all_components:
+                NN_decisions = CS.transmission(sigma_euclid, mode='NN_decision_making')
+                block_decisions = CS.transmission(sigma_euclid, mode='blocks')
+            network_decisions = CS.transmission(sigma_network, mode='network', model=rx_model)
+            joint_decisions = CS.transmission(sigma_network, mode='joint', cutoff=cutoff, model=joint_models)
+            sigmas[i] = sigma_euclid
+        else:
+            sigma = CS.SNRdb_to_sigma(SNRdb, avg_symbol_energy, use_gain=True)
+            euclid_decisions = CS.transmission(sigma)
+            network_decisions = CS.transmission_no_norm(sigma, mode='network', model=rx_model)
+            sigmas[i] = sigma'''
+
+

@@ -2,7 +2,7 @@ import torch
 import torch.nn
 import torchaudio
 import matplotlib.pyplot as plt
-from Comms_System import butter_lowpass
+from filters import butter_lowpass
 import numpy as np
 
 def compute_loss(model, X, y, criterion):
@@ -130,7 +130,7 @@ def train_loop_minibatch(model, optimizer, cost, Xtrain, ytrain, Xtest=None, yte
     return epoch_losses_test, epoch_losses_train
 
 
-def joint_train_loop(NN_tx, NN_rx, X, y, optimizer, cost, epochs=100, SNRdb=10, lowpass=False, cutoff_freq=1,
+def joint_train_loop(NN_tx, NN_rx, X, y, optimizer, cost, epochs=100, SNRdb=10, cutoff_freq=2,
                      plot_iteration=300, sample_rate=8, use_cuda=False, v=False):
 
     SNR = 10 ** (SNRdb / 10)
