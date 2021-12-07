@@ -238,7 +238,7 @@ def SNR_plot(num_symbols=10000, norm_nets=False, rx_model=None, joint_models=Non
         if all_components:
             NN_decisions = CS.transmission(SNRdb, mode='NN_decision_making')
             block_decisions = CS.transmission(SNRdb, mode='blocks')
-        #sigmas[i] = sigma_euclid
+
 
         euclid_error_rates[i] = CS.evaluate(euclid_decisions)[1]
         network_error_rates[i] = CS.evaluate(network_decisions)[1]
