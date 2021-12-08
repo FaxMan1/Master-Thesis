@@ -1,9 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from commpy.filters import rrcosfilter
-from ML_components import ML_decision_making, ML_downsampling, ML_filtering
+from ML_components import ML_decision_making, ML_downsampling
 from ML_components import network_receiver, network_sender_receiver
 from scipy.stats import norm
+from scipy.signal import lfilter
+from filters import butter_lowpass
 
 class Comms_System:
 
@@ -106,7 +108,7 @@ class Comms_System:
         return chosen_symbols
 
 
-    def transmission(self, SNRdb, mode='euclidean', model=None, cutoff=2, v=False):
+    def transmission(self, SNRdb, mode='euclidean', model=None, cutoff=2, rx_lowpass=False, v=False):
 
         gain_factor = np.max(np.convolve(self.h, self.h))
         upsampled = self.upsample()
@@ -121,6 +123,9 @@ class Comms_System:
         if mode == 'network':
             sigma = self.SNRdb_to_sigma(SNRdb, 8, use_gain=False)
             if v: print(sigma)
+            if rx_lowpass:
+                b, a = butter_lowpass(cutoff, self.m, 10)
+                Tx = lfilter(b, a, Tx)
             Tx = Tx / np.sqrt(np.mean(np.square(Tx)))  # normalize signal
             Tx = Tx + np.random.normal(0.0, sigma, Tx.shape)
             decisions = network_receiver(Tx, self.symbol_set, model=model)
@@ -202,13 +207,12 @@ class Comms_System:
         return num_errors, error_rate
 
 
-def SNR_plot(num_symbols=10000, norm_nets=False, rx_model=None, joint_models=None, cutoff=2, all_components=False):
+def SNR_plot(num_symbols=10000, norm_nets=False, rx_model=None, joint_models=None, cutoff=2, all_components=False, rx_low=False):
     symbol_set = [3, 1, -1, -3]  # all symbols that we use
     symbol_seq = np.random.choice(symbol_set, num_symbols, replace=True)
     CS = Comms_System(symbol_set=symbol_set, symbol_seq=symbol_seq, num_samples=8, beta=0.35)
     SNRdbs = np.linspace(0, 18, 50)
 
-    sigmas = np.zeros(len(SNRdbs))
     euclid_error_rates = np.zeros(len(SNRdbs))
     NN_error_rates = np.zeros(len(SNRdbs))
     block_error_rates = np.zeros(len(SNRdbs))
@@ -230,7 +234,7 @@ def SNR_plot(num_symbols=10000, norm_nets=False, rx_model=None, joint_models=Non
         euclid_decisions = CS.transmission(SNRdb, mode='euclidean')
 
         if norm_nets:
-            network_decisions = CS.transmission(SNRdb, mode='network', model=rx_model)
+            network_decisions = CS.transmission(SNRdb, mode='network', model=rx_model, rx_lowpass=rx_low)
             joint_decisions = CS.transmission(SNRdb, mode='joint', cutoff=cutoff, model=joint_models)
         else:
             network_decisions = CS.transmission_no_norm(SNRdb, mode='network', model=rx_model)
