@@ -23,8 +23,8 @@ def network_sender_receiver(upsampled, classes, sigma=0.89, cutoff_freq=2, path=
     upsampled = torch.Tensor(upsampled).view(1, 1, -1)
 
     if models is None:
-        NN_tx = torch.load(path + 'best_NN_tx')
-        NN_rx = torch.load(path + 'best_NN_Rx')
+        NN_tx = torch.load(path + 'Sender_cutoff2')
+        NN_rx = torch.load(path + 'Receiver_cutoff2')
     else:
         NN_tx, NN_rx = models
 

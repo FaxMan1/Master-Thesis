@@ -168,7 +168,7 @@ def joint_train_loop(NN_tx, NN_rx, X, y, optimizer, cost, epochs=100, SNRdb=10, 
 
         epoch_losses_train[i] = loss.item()
 
-        if v and (i + 1) % plot_iteration == 0:
+        if v and i % plot_iteration == 0:
             print(i, " loss:", loss.item())
             acc = torch.sum(received.argmax(axis=1) == y) / len(y)
             print(i, " acc:", acc.item())
