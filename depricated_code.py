@@ -362,5 +362,53 @@ def test_CS(self, noise_level=2, dec_model=None, block_model=None, filter_model=
             euclid_decisions = CS.transmission(sigma)
             network_decisions = CS.transmission_no_norm(sigma, mode='network', model=rx_model)
             sigmas[i] = sigma'''
+'''
 
+for i, SNRdb in enumerate(SNRdbs):
+
+    # sigma_euclid = CS.SNRdb_to_sigma(SNRdb, avg_symbol_energy, use_gain=True)  # symbol energy og gain
+    # sigma_network = CS.SNRdb_to_sigma(SNRdb, 8, use_gain=False)
+    euclid_decisions = CS.transmission(SNRdb, mode='euclidean')
+
+    if norm_nets:
+        network_decisions = CS.transmission(SNRdb, mode='network', model=rx_model, rx_cutoff=rx_cutoff)
+        joint_decisions = CS.transmission(SNRdb, mode='joint', joint_cutoff=joint_cutoff, model=joint_models)
+    else:
+        network_decisions = CS.transmission_no_norm(SNRdb, mode='network', model=rx_model)
+
+    if all_components:
+        NN_decisions = CS.transmission(SNRdb, mode='NN_decision_making')
+        block_decisions = CS.transmission(SNRdb, mode='blocks')
+
+    euclid_error_rates[i] = CS.evaluate(euclid_decisions)[1]
+    network_error_rates[i] = CS.evaluate(network_decisions)[1]
+    if all_components:
+        NN_error_rates[i] = CS.evaluate(NN_decisions)[1]
+        block_error_rates[i] = CS.evaluate(block_decisions)[1]
+    if norm_nets:
+        joint_error_rates[i] = CS.evaluate(joint_decisions)[1]
+
+
+ def transmission_no_norm(self, SNRdb=10, mode='euclidean', model=None, v=False):
+
+        sigma = self.SNRdb_to_sigma(SNRdb, np.mean(self.symbol_seq**2), use_gain=True)
+        if v: print('Sigma:', sigma)
+
+        gain_factor = np.max(np.convolve(self.h, self.h))
+        upsampled = self.upsample()
+        Tx = np.convolve(upsampled, self.h)
+        # If normalize: Tx = Tx / np.sqrt(np.mean(np.square(Tx)))
+        Tx = Tx + np.random.normal(0.0, sigma, Tx.shape)
+        Rx = np.convolve(Tx, self.h)
+        # if normalize: Rx =  (Rx / np.sqrt(np.mean(np.square(Rx)))) *
+                            # np.sqrt(np.mean(self.symbol_seq ** 2))
+
+        downsampled = self.downsample(Rx)/gain_factor
+
+        if mode == 'euclidean':
+            received_symbols = self.decision_making(downsampled, False)
+        elif mode == 'network':
+            received_symbols = network_receiver(Tx, self.symbol_set, model=model)
+
+        return received_symbols'''
 

@@ -108,7 +108,7 @@ class Comms_System:
         return chosen_symbols
 
 
-    def transmission(self, SNRdb, mode='euclidean', model=None, cutoff=2, rx_lowpass=False, v=False):
+    def transmission(self, SNRdb, mode='euclidean', model=None, joint_cutoff=2, rx_cutoff=None, v=False):
 
         gain_factor = np.max(np.convolve(self.h, self.h))
         upsampled = self.upsample()
@@ -117,14 +117,14 @@ class Comms_System:
         if mode == 'joint':
             sigma = self.SNRdb_to_sigma(SNRdb, 8, use_gain=False)
             if v: print(sigma)
-            decisions = network_sender_receiver(upsampled, self.symbol_set, sigma, cutoff_freq=cutoff, models=model)
+            decisions = network_sender_receiver(upsampled, self.symbol_set, sigma, cutoff_freq=joint_cutoff, models=model)
             return decisions
 
         if mode == 'network':
             sigma = self.SNRdb_to_sigma(SNRdb, 8, use_gain=False)
             if v: print(sigma)
-            if rx_lowpass:
-                b, a = butter_lowpass(cutoff, self.m, 10)
+            if rx_cutoff is not None:
+                b, a = butter_lowpass(rx_cutoff, self.m, 10)
                 Tx = lfilter(b, a, Tx)
             Tx = Tx / np.sqrt(np.mean(np.square(Tx)))  # normalize signal
             Tx = Tx + np.random.normal(0.0, sigma, Tx.shape)
@@ -154,31 +154,7 @@ class Comms_System:
         return decisions
 
 
-    def transmission_no_norm(self, SNRdb=10, mode='euclidean', model=None, v=False):
-
-        sigma = self.SNRdb_to_sigma(SNRdb, np.mean(self.symbol_seq**2), use_gain=True)
-        if v: print('Sigma:', sigma)
-
-        gain_factor = np.max(np.convolve(self.h, self.h))
-        upsampled = self.upsample()
-        Tx = np.convolve(upsampled, self.h)
-        # If normalize: Tx = Tx / np.sqrt(np.mean(np.square(Tx)))
-        Tx = Tx + np.random.normal(0.0, sigma, Tx.shape)
-        Rx = np.convolve(Tx, self.h)
-        # if normalize: Rx =  (Rx / np.sqrt(np.mean(np.square(Rx)))) *
-                            # np.sqrt(np.mean(self.symbol_seq ** 2))
-
-        downsampled = self.downsample(Rx)/gain_factor
-
-        if mode == 'euclidean':
-            received_symbols = self.decision_making(downsampled, False)
-        elif mode == 'network':
-            received_symbols = network_receiver(Tx, self.symbol_set, model=model)
-
-        return received_symbols
-
-
-    def transmit_all(self, SNRdb, rx_model=None, joint_models=None, norm_nets=True, cutoff=2):
+    def transmit_all(self, SNRdb, rx_model=None, joint_models=None, joint_cutoff=2, rx_cutoff=None):
 
         # fordi vi har normaliseret er sample energi sat til 1, og vi har 8 samples pr symbol,
         # altså er avg_symbol_energy så 1*8 for det normaliserede netværk (normaliserede signal)
@@ -188,13 +164,8 @@ class Comms_System:
         euclid_decisions = self.transmission(SNRdb, mode='euclidean')
         NN_decisions = self.transmission(SNRdb, mode='NN_decision_making')
         block_decisions = self.transmission(SNRdb, mode='blocks')
-
-        if norm_nets:
-            network_decisions = self.transmission(SNRdb, mode='network', model=rx_model)
-            joint_decisions = self.transmission(SNRdb, mode='joint', cutoff=cutoff, model=joint_models)
-        else:
-            network_decisions = self.transmission_no_norm(SNRdb, mode='network', model=rx_model)
-            joint_decisions = None
+        network_decisions = self.transmission(SNRdb, mode='network', model=rx_model, rx_cutoff=rx_cutoff)
+        joint_decisions = self.transmission(SNRdb, mode='joint', joint_cutoff=joint_cutoff, model=joint_models)
 
         return euclid_decisions, NN_decisions, block_decisions, network_decisions, joint_decisions
 
@@ -207,7 +178,7 @@ class Comms_System:
         return num_errors, error_rate
 
 
-def SNR_plot(num_symbols=10000, norm_nets=False, rx_model=None, joint_models=None, cutoff=2, all_components=False, rx_low=False):
+def SNR_plot(num_symbols=10000, rx_model=None, joint_models=None, joint_cutoff=2, rx_cutoff=None, all_components=False):
     symbol_set = [3, 1, -1, -3]  # all symbols that we use
     symbol_seq = np.random.choice(symbol_set, num_symbols, replace=True)
     CS = Comms_System(symbol_set=symbol_set, symbol_seq=symbol_seq, num_samples=8, beta=0.35)
@@ -231,26 +202,19 @@ def SNR_plot(num_symbols=10000, norm_nets=False, rx_model=None, joint_models=Non
 
         #sigma_euclid = CS.SNRdb_to_sigma(SNRdb, avg_symbol_energy, use_gain=True)  # symbol energy og gain
         #sigma_network = CS.SNRdb_to_sigma(SNRdb, 8, use_gain=False)
+
         euclid_decisions = CS.transmission(SNRdb, mode='euclidean')
-
-        if norm_nets:
-            network_decisions = CS.transmission(SNRdb, mode='network', model=rx_model, rx_lowpass=rx_low)
-            joint_decisions = CS.transmission(SNRdb, mode='joint', cutoff=cutoff, model=joint_models)
-        else:
-            network_decisions = CS.transmission_no_norm(SNRdb, mode='network', model=rx_model)
-
+        network_decisions = CS.transmission(SNRdb, mode='network', model=rx_model, rx_cutoff=rx_cutoff)
+        joint_decisions = CS.transmission(SNRdb, mode='joint', joint_cutoff=joint_cutoff, model=joint_models)
         if all_components:
             NN_decisions = CS.transmission(SNRdb, mode='NN_decision_making')
             block_decisions = CS.transmission(SNRdb, mode='blocks')
-
+            NN_error_rates[i] = CS.evaluate(NN_decisions)[1]
+            block_error_rates[i] = CS.evaluate(block_decisions)[1]
 
         euclid_error_rates[i] = CS.evaluate(euclid_decisions)[1]
         network_error_rates[i] = CS.evaluate(network_decisions)[1]
-        if all_components:
-            NN_error_rates[i] = CS.evaluate(NN_decisions)[1]
-            block_error_rates[i] = CS.evaluate(block_decisions)[1]
-        if norm_nets:
-            joint_error_rates[i] = CS.evaluate(joint_decisions)[1]
+        joint_error_rates[i] = CS.evaluate(joint_decisions)[1]
 
     sigmas = np.array([CS.SNRdb_to_sigma(SNRdb, avg_symbol_energy, use_gain=True) for SNRdb in SNRdbs])
     error_theory = 1.5 * (1 - norm.cdf(np.sqrt(gain_factor / sigmas ** 2)))
