@@ -150,8 +150,8 @@ class Comms_System:
             block_decisions = ML_downsampling(blocks, self.symbol_set)
             return block_decisions
 
+        print('no mode selected')
 
-        return decisions
 
 
     def transmit_all(self, SNRdb, rx_model=None, joint_models=None, joint_cutoff=2, rx_cutoff=None):
@@ -182,7 +182,7 @@ def SNR_plot(num_symbols=10000, rx_model=None, joint_models=None, joint_cutoff=2
     symbol_set = [3, 1, -1, -3]  # all symbols that we use
     symbol_seq = np.random.choice(symbol_set, num_symbols, replace=True)
     CS = Comms_System(symbol_set=symbol_set, symbol_seq=symbol_seq, num_samples=8, beta=0.35)
-    SNRdbs = np.linspace(0, 18, 50)
+    SNRdbs = np.linspace(0, 19, 50)
 
     euclid_error_rates = np.zeros(len(SNRdbs))
     NN_error_rates = np.zeros(len(SNRdbs))

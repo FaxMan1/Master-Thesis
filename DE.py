@@ -136,7 +136,7 @@ class DE:
 
         return self.best_agent
 
-    def evaluate(self, plot_function=None, agent=None, bounds=None, title=' '):
+    def evaluate(self, plot_function=None, agent=None, bounds=None, savefig=False, title=' '):
 
         if agent is None:
             agent = self.best_agent
@@ -147,10 +147,13 @@ class DE:
             plt.xlabel('Iterations', fontsize=20)
             plt.ylabel('Cost', fontsize=20)
             plt.legend(['Train', 'Test'], fontsize=14)
-            plt.show()
+            if savefig:
+                plt.savefig('TrainingGraph')
+            else:
+                plt.show()
 
         if plot_function is not None:
-            plot_function(agent, self.Xtest, self.ytest, title=title, savefig=False)
+            plot_function(agent, self.Xtest, self.ytest, title=title, savefig=savefig)
 
         print(f"Best agent is {agent} with a train cost of {np.round(self.NN_obj(agent), 5)}.")
         print(f"And a test cost of {np.round(self.obj([self.ytest, agent.feedforward(self.Xtest)]), 5)}")

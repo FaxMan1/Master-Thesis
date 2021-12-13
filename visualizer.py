@@ -10,6 +10,7 @@ def plot_simple_data(agent, Xtest, ytest, title='Approximated Function', savefig
     plt.plot(Xtest, ytest, 'bx', label='Test Data')
     plt.plot(Xtest, yhat, '-r', label='Learned Function')
     # plt.title(r'Fit of $y = x^2$', fontsize = 15)
+    plt.title(title, fontsize=26)
     plt.xlabel('x', fontsize=24)
     plt.ylabel('y', fontsize=24)
     plt.legend(fontsize=14)
@@ -36,7 +37,7 @@ def prep_for_2d_mesh(agent, Xtest):
     return yhats
 
 
-def plot_ackley(func, agent, bounds=None, title=''):
+def plot_ackley(func, agent, bounds=None, title='', savefig=False):
     if bounds is not None:
         lb, ub = bounds
     else:
@@ -60,7 +61,10 @@ def plot_ackley(func, agent, bounds=None, title=''):
     ax.set_xlabel('x', fontsize=20)
     ax.set_ylabel('y', fontsize=20)
     ax.set_zlabel('z', fontsize=20)
-    plt.show()
+    if savefig:
+        plt.savefig('3DOptimization')
+    else:
+        plt.show()
 
 
 def plot_2d_gauss(agent, X=None, ytest=None, bounds=[-1, 1], mu=[0, 0], sigma=[0.25, 0.25], verbose=False, title=' ',
