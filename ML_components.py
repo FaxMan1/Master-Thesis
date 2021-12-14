@@ -17,7 +17,7 @@ def load_params(weight_file, bias_file):
     return weights, biases, sizes
 
 
-def network_sender_receiver(upsampled, classes, sigma=0.89, cutoff_freq=2, path='../Joint_Models/', models=None):
+def network_sender_receiver(upsampled, classes, sigma=0.89, cutoff_freq=2, path='../Joint_Models/', models=None, lowpass='butter'):
 
     classes = np.array(classes)
     upsampled = torch.Tensor(upsampled).view(1, 1, -1)
@@ -28,14 +28,22 @@ def network_sender_receiver(upsampled, classes, sigma=0.89, cutoff_freq=2, path=
     else:
         NN_tx, NN_rx = models
 
-    b, a = butter_lowpass(cutoff_freq, 8, 4)
-    b = torch.tensor(b, requires_grad=True).float()
-    a = torch.tensor(a, requires_grad=True).float()
+    if lowpass == 'butter':
+        b, a = butter_lowpass(cutoff_freq, 8, 4)
+        b = torch.tensor(b, requires_grad=True).float()
+        a = torch.tensor(a, requires_grad=True).float()
 
     Tx = NN_tx(upsampled)
 
-    # Send filtered signal through lowpass filter
-    Tx = torchaudio.functional.lfilter(Tx, a, b)
+    if lowpass == 'butter':
+        # Send filtered signal through lowpass filter
+        Tx = torchaudio.functional.lfilter(Tx, a, b)
+    elif lowpass == 'ideal':
+        Tx_freq = torch.fft.rfft(Tx)
+        xf = torch.fft.rfftfreq(Tx.shape[2], 1 / 8)
+        Tx_freq[0][0][xf > cutoff_freq] = 0
+        Tx = torch.fft.irfft(Tx_freq, n=Tx.shape[2])
+
     # Normalize signal
     Tx = Tx / torch.sqrt(torch.mean(torch.square(Tx)))
     # Transmit signal

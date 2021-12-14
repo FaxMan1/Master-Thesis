@@ -131,7 +131,7 @@ def train_loop_minibatch(model, optimizer, cost, Xtrain, ytrain, Xtest=None, yte
 
 
 def joint_train_loop(NN_tx, NN_rx, X, y, optimizer, cost, epochs=100, SNRdb=10, cutoff_freq=2,
-                     plot_iteration=300, sample_rate=8, use_cuda=False, v=False):
+                     plot_iteration=300, sample_rate=8, use_cuda=False, v=False, lowpass='butter'):
 
     SNR = 10 ** (SNRdb / 10)
     sigma = np.sqrt(8 / SNR)
@@ -148,15 +148,23 @@ def joint_train_loop(NN_tx, NN_rx, X, y, optimizer, cost, epochs=100, SNRdb=10, 
     X, y = X.to(device), y.long().to(device)
 
     epoch_losses_train = torch.zeros(epochs).to(device)
-    b, a = butter_lowpass(cutoff_freq, sample_rate, 4)
-    b = torch.tensor(b, requires_grad=True).float().to(device)
-    a = torch.tensor(a, requires_grad=True).float().to(device)
+    if lowpass == 'butter':
+        b, a = butter_lowpass(cutoff_freq, sample_rate, 4)
+        b = torch.tensor(b, requires_grad=True).float().to(device)
+        a = torch.tensor(a, requires_grad=True).float().to(device)
 
     for i in range(epochs):
 
         Tx = NN_tx(X)
         # Send filtered signal through lowpass filter
-        Tx_low = torchaudio.functional.lfilter(Tx, a, b)
+        if lowpass == 'butter':
+            Tx_low = torchaudio.functional.lfilter(Tx, a, b)
+        elif lowpass == 'ideal':
+            Tx_freq = torch.fft.rfft(Tx)
+            xf = torch.fft.rfftfreq(Tx.shape[2], 1/sample_rate)
+            Tx_freq[0][0][xf > cutoff_freq] = 0
+            Tx_low = torch.fft.irfft(Tx_freq, n=Tx.shape[2])
+
         Tx_low = Tx_low / torch.sqrt(torch.mean(torch.square(Tx_low))) # normalize
         Tx_low = Tx_low + torch.normal(0.0, sigma, Tx_low.shape, device=device)
         received = NN_rx(Tx_low)[0].T
@@ -177,14 +185,16 @@ def joint_train_loop(NN_tx, NN_rx, X, y, optimizer, cost, epochs=100, SNRdb=10, 
             plt.title('Sender Weights')
             plt.plot(list(NN_tx.parameters())[0].to('cpu').detach()[0][0])
             plt.show()
-            plt.magnitude_spectrum(list(NN_tx.parameters())[0].to('cpu').detach()[0][0], Fs=sample_rate, color='C1')
+            plt.magnitude_spectrum(list(NN_tx.parameters())[0].to('cpu').detach()[0][0],
+                                   Fs=sample_rate, color='C1', sides='twosided', scale='dB')
             plt.show()
 
             plt.figure()
             plt.title('Receiver Weights')
             plt.plot(list(NN_rx.parameters())[0].to('cpu').detach()[0][0])
             plt.show()
-            plt.magnitude_spectrum(list(NN_rx.parameters())[0].to('cpu').detach()[0][0], Fs=sample_rate, color='C1')
+            plt.magnitude_spectrum(list(NN_rx.parameters())[0].to('cpu').detach()[0][0],
+                                   Fs=sample_rate, color='C1', sides='twosided', scale='dB')
             plt.show()
 
 
