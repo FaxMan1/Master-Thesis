@@ -29,7 +29,7 @@ def network_sender_receiver(upsampled, classes, sigma=0.89, cutoff_freq=2, path=
         NN_tx, NN_rx = models
 
     if lowpass == 'butter':
-        b, a = butter_lowpass(cutoff_freq, 8, 4)
+        b, a = butter_lowpass(cutoff_freq, 8, 10)
         b = torch.tensor(b, requires_grad=True).float()
         a = torch.tensor(a, requires_grad=True).float()
 

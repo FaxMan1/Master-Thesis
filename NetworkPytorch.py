@@ -149,7 +149,7 @@ def joint_train_loop(NN_tx, NN_rx, X, y, optimizer, cost, epochs=100, SNRdb=10, 
 
     epoch_losses_train = torch.zeros(epochs).to(device)
     if lowpass == 'butter':
-        b, a = butter_lowpass(cutoff_freq, sample_rate, 4)
+        b, a = butter_lowpass(cutoff_freq, sample_rate, 10)
         b = torch.tensor(b, requires_grad=True).float().to(device)
         a = torch.tensor(a, requires_grad=True).float().to(device)
 

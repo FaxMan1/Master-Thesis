@@ -118,7 +118,7 @@ class Comms_System:
             sigma = self.SNRdb_to_sigma(SNRdb, 8, use_gain=False)
             if v: print(sigma)
             decisions = network_sender_receiver(upsampled, self.symbol_set, sigma, cutoff_freq=joint_cutoff,
-                                                models=model, lowpass=lowpass)
+                                                 models=model, lowpass=lowpass)
             return decisions
 
         if mode == 'network':
