@@ -34,7 +34,7 @@ class DE():
         plt.xlabel('Iterations', fontsize=20)
         plt.ylabel('Fitness Value', fontsize=20)
         if savefig:
-            plt.savefig('TrainingGraph')
+            plt.savefig('TrainingGraph', bbox_inches='tight', transparent=True)
         else:
             plt.show()
 

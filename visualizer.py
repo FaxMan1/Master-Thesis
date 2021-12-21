@@ -15,7 +15,7 @@ def plot_simple_data(agent, Xtest, ytest, title='Approximated Function', savefig
     plt.ylabel('y', fontsize=24)
     plt.legend(fontsize=14)
     if savefig:
-        plt.savefig(title)
+        plt.savefig(title, bbox_inches='tight', transparent=True)
     else:
         plt.show()
 
@@ -62,7 +62,7 @@ def plot_ackley(func, agent, bounds=None, title='', savefig=False):
     ax.set_ylabel('y', fontsize=20)
     ax.set_zlabel('z', fontsize=20)
     if savefig:
-        plt.savefig('3DOptimization')
+        plt.savefig(title, bbox_inches='tight', transparent=True)
     else:
         plt.show()
 
@@ -91,6 +91,6 @@ def plot_2d_gauss(agent, X=None, ytest=None, bounds=[-1, 1], mu=[0, 0], sigma=[0
     ax.set_ylabel('x2', fontsize=20)
     ax.set_zlabel('y', fontsize=20)
     if savefig:
-        plt.savefig(title)
+        plt.savefig(title, bbox_inches='tight', transparent=True)
     else:
         plt.show()

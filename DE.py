@@ -148,7 +148,7 @@ class DE:
             plt.ylabel('Cost', fontsize=20)
             plt.legend(['Train', 'Test'], fontsize=14)
             if savefig:
-                plt.savefig('TrainingGraph')
+                plt.savefig('TrainingGraph', bbox_inches='tight', transparent=True)
             else:
                 plt.show()
 
