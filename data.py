@@ -19,7 +19,7 @@ def create_3d_gauss_data(mu=[0,0], sigma=[1,1], num_data_points=300):
     return xtrain, ytrain, xtest, ytest
 
 
-def create_simple_data(problem='parabola', num_data_points=30, bounds=None, noise=False):
+def create_simple_data(problem='parabola', num_data_points=30, bounds=None, noise=0.05):
 
     if problem == 'sine':
         Xtrain = np.random.uniform(low=-np.pi, high=np.pi, size=(num_data_points, 1))
@@ -29,8 +29,8 @@ def create_simple_data(problem='parabola', num_data_points=30, bounds=None, nois
         Xtest = np.array(Xtest, ndmin=2).T
         ytest = np.sin(Xtest)
         if noise:
-            ytrain = ytrain + np.random.normal(0.0, 0.05, ytrain.shape)  # add gaussian noise
-            ytest = ytest + np.random.normal(0.0, 0.05, ytest.shape) # add gaussian noise
+            ytrain = ytrain + np.random.normal(0.0, noise, ytrain.shape)  # add gaussian noise
+            ytest = ytest + np.random.normal(0.0, noise, ytest.shape) # add gaussian noise
 
         return Xtrain, ytrain, Xtest, ytest
 
@@ -42,7 +42,7 @@ def create_simple_data(problem='parabola', num_data_points=30, bounds=None, nois
         Xtest = np.array(Xtest, ndmin=2).T
         ytest = Xtest ** 2
         if noise:
-            ytrain = ytrain + np.random.normal(0.0, 0.05, ytrain.shape)  # add gaussian noise
-            ytest = ytest + np.random.normal(0.0, 0.05, ytest.shape)  # add gaussian noise
+            ytrain = ytrain + np.random.normal(0.0, noise, ytrain.shape)  # add gaussian noise
+            ytest = ytest + np.random.normal(0.0, noise, ytest.shape)  # add gaussian noise
 
     return Xtrain, ytrain, Xtest, ytest

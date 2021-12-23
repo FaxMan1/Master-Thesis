@@ -10,7 +10,7 @@ def plot_simple_data(agent, Xtest, ytest, title='Approximated Function', savefig
     plt.plot(Xtest, ytest, 'bx', label='Test Data')
     plt.plot(Xtest, yhat, '-r', label='Learned Function')
     # plt.title(r'Fit of $y = x^2$', fontsize = 15)
-    plt.title(title, fontsize=26)
+    #plt.title(title, fontsize=26)
     plt.xlabel('x', fontsize=24)
     plt.ylabel('y', fontsize=24)
     plt.legend(fontsize=14)
@@ -86,7 +86,7 @@ def plot_2d_gauss(agent, X=None, ytest=None, bounds=[-1, 1], mu=[0, 0], sigma=[0
     plt.figure(figsize=(16, 10))
     ax = plt.axes(projection='3d')
     ax.plot_surface(x1, x2, y, cmap='viridis', alpha=1)
-    ax.set_title(title, fontsize=26);
+    #ax.set_title(title, fontsize=26);
     ax.set_xlabel('x1', fontsize=20)
     ax.set_ylabel('x2', fontsize=20)
     ax.set_zlabel('y', fontsize=20)
