@@ -134,7 +134,7 @@ def joint_train_loop(NN_tx, NN_rx, X, y, optimizer, cost, epochs=100, SNRdb=10, 
                      plot_iteration=300, sample_rate=8, use_cuda=False, v=False, lowpass='butter'):
 
     SNR = 10 ** (SNRdb / 10)
-    sigma = np.sqrt(8 / SNR)
+    sigma = np.sqrt(sample_rate / SNR) # 8 here being the sample rate? Changing it to self.m. If doesn't work, change back to 8
     print(sigma)
 
     if torch.cuda.is_available and use_cuda:
