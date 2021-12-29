@@ -132,7 +132,12 @@ class DE:
                 # report progress at each iteration
                 print('%d: cost= %.5f' % (i, best_obj))
                 print('%d: testcost= %.5f' % (i, self.best_test_objs[i + 1]))
+                acc = self.accuracy(self.best_agent.feedforward(self.X), self.y)
+                testacc = self.accuracy(self.best_agent.feedforward(self.Xtest), self.ytest)
+                print('%d: acc=%.5f' % (i, acc))
+                print('%d: testacc=%.5f' % (i, testacc))
                 print()
+
 
         return self.best_agent
 
