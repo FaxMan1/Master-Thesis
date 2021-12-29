@@ -115,14 +115,14 @@ class Comms_System:
         Tx = np.convolve(upsampled, self.h)
 
         if mode == 'joint':
-            sigma = self.SNRdb_to_sigma(SNRdb, 8, use_gain=False)
+            sigma = self.SNRdb_to_sigma(SNRdb, self.m, use_gain=False) # previously 8
             if v: print(sigma)
             decisions = network_sender_receiver(upsampled, self.symbol_set, sigma, cutoff_freq=joint_cutoff,
                                                  models=model, lowpass=lowpass)
             return decisions
 
         if mode == 'network':
-            sigma = self.SNRdb_to_sigma(SNRdb, 8, use_gain=False)
+            sigma = self.SNRdb_to_sigma(SNRdb, self.m, use_gain=False) # previously 8
             if v: print(sigma)
             if rx_cutoff is not None:
                 b, a = butter_lowpass(rx_cutoff, self.m, 10)
@@ -143,16 +143,15 @@ class Comms_System:
             return decisions
 
         elif mode == 'NN_decision_making':
-            NN_decisions = ML_decision_making(downsampled, self.symbol_set)
+            NN_decisions = ML_decision_making(downsampled, self.symbol_set, model=model)
             return NN_decisions
 
         elif mode == 'blocks':
             blocks = self.get_periods(Rx/gain_factor)
-            block_decisions = ML_downsampling(blocks, self.symbol_set)
+            block_decisions = ML_downsampling(blocks, self.symbol_set, model=model)
             return block_decisions
 
         print('no mode selected')
-
 
 
     def transmit_all(self, SNRdb, rx_model=None, joint_models=None, joint_cutoff=2, rx_cutoff=None, lowpass='butter'):
@@ -169,6 +168,26 @@ class Comms_System:
         joint_decisions = self.transmission(SNRdb, mode='joint', joint_cutoff=joint_cutoff, model=joint_models, lowpass=lowpass)
 
         return euclid_decisions, NN_decisions, block_decisions, network_decisions, joint_decisions
+
+
+    def transmit_small_components(self, SNRdb, NN_model=None, block_model=None, block=False):
+        sigma = self.SNRdb_to_sigma(SNRdb, np.mean(self.symbol_seq**2), use_gain=True)
+        gain_factor = np.max(np.convolve(self.h, self.h))
+
+        upsampled = self.upsample()
+        Tx = np.convolve(upsampled, self.h)
+        Tx = Tx + np.random.normal(0.0, sigma, Tx.shape)
+        Rx = np.convolve(Tx, self.h)
+        downsampled = self.downsample(Rx) / gain_factor
+
+        decisions = self.decision_making(downsampled)
+        NN_decisions = ML_decision_making(downsampled, self.symbol_set, model=NN_model)
+        if block:
+            blocks = self.get_periods(Rx / gain_factor)
+            block_decisions = ML_downsampling(blocks, self.symbol_set, model=block_model)
+            return decisions, NN_decisions, block_decisions
+
+        return decisions, NN_decisions
 
 
     def evaluate(self, decisions):
