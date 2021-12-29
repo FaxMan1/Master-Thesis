@@ -29,6 +29,9 @@ class NeuralNetwork:
         elif afunc == 'relu':
             self.afunction = ActivationFunctions.ReLu
             self.derivfunction = ActivationFunctions.ReLuPrime
+        elif afunc == 'identity':
+            self.afunction = ActivationFunctions.identity
+            self.derivfunction = ActivationFunctions.derivIdentity
         if type == 'classification':
             self.cost = CostFunctions.crossEntropy
             self.derivCost = CostFunctions.derivCE
@@ -263,6 +266,14 @@ class CostFunctions:
 
 
 class ActivationFunctions:
+
+    @staticmethod
+    def identity(z):
+        return z
+
+    @staticmethod
+    def derivIdentity(z):
+        return 1
     
     @staticmethod
     def tanh(z):
