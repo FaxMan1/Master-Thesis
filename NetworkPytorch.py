@@ -158,7 +158,7 @@ def joint_train_loop(NN_tx, NN_rx, X, y, optimizer, cost, epochs=100, SNRdb=10, 
         Tx = NN_tx(X)
         # Send filtered signal through lowpass filter
         if lowpass == 'butter':
-            Tx_low = torchaudio.functional.lfilter(Tx, a, b)
+            Tx_low = torchaudio.functional.filtfilt(Tx, a, b)
         elif lowpass == 'ideal':
             Tx_freq = torch.fft.rfft(Tx)
             xf = torch.fft.rfftfreq(Tx.shape[2], 1/sample_rate)
