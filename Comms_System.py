@@ -200,11 +200,11 @@ class Comms_System:
 
 
 def SNR_plot(num_symbols=10000, rx_model=None, joint_models=None, joint_cutoff=0.675, rx_cutoff=None, all_components=False,
-             lowpass='butter'):
+             lowpass='butter', range=[0, 19]):
     symbol_set = [3, 1, -1, -3]  # all symbols that we use
     symbol_seq = np.random.choice(symbol_set, num_symbols, replace=True)
     CS = Comms_System(symbol_set=symbol_set, symbol_seq=symbol_seq, num_samples=8, beta=0.35)
-    SNRdbs = np.linspace(0, 19, 50)
+    SNRdbs = np.linspace(range[0], range[1], 50) # 0, 19, 50
 
     euclid_error_rates = np.zeros(len(SNRdbs))
     NN_error_rates = np.zeros(len(SNRdbs))
