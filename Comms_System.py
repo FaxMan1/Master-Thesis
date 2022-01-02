@@ -123,6 +123,7 @@ class Comms_System:
 
         if mode == 'network':
             sigma = self.SNRdb_to_sigma(SNRdb, self.m, use_gain=False) # previously 8
+            #sigma = self.SNRdb_to_sigma(SNRdb, np.mean(self.symbol_seq ** 2), use_gain=True)
             if v: print(sigma)
             if rx_cutoff is not None:
                 b, a = butter_lowpass(rx_cutoff, self.m, 10)
@@ -198,7 +199,7 @@ class Comms_System:
         return num_errors, error_rate
 
 
-def SNR_plot(num_symbols=10000, rx_model=None, joint_models=None, joint_cutoff=2, rx_cutoff=None, all_components=False,
+def SNR_plot(num_symbols=10000, rx_model=None, joint_models=None, joint_cutoff=0.675, rx_cutoff=None, all_components=False,
              lowpass='butter'):
     symbol_set = [3, 1, -1, -3]  # all symbols that we use
     symbol_seq = np.random.choice(symbol_set, num_symbols, replace=True)

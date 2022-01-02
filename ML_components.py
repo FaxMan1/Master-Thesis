@@ -75,7 +75,7 @@ def network_receiver(Rx, classes, model=None, path='../Conv1DModels/'):
     classes = np.array(classes)
 
     if model is None:
-        model = torch.load(path + 'RX_network')
+        model = torch.load(path + 'RX_Network')
 
     return classes[model(X).argmax(axis=1)]
 
