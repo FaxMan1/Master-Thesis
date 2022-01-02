@@ -115,7 +115,8 @@ class DE:
                 print('%d: testcost= %.5f' % (i, self.best_test_objs[i + 1]))
                 print('%d: acc= %.5f' % (i, self.accuracy(self.best_agent(self.X), self.y)))
                 print('%d: testacc= %.5f' % (i, self.accuracy(self.best_agent(self.Xtest), self.ytest)))
-                print()
+                plt.plot(list(self.best_agent.parameters())[0].cpu().detach()[0][0])
+                plt.show()
 
         return self.best_agent
 
