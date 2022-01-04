@@ -4,7 +4,7 @@ from commpy.filters import rrcosfilter
 from ML_components import ML_decision_making, ML_downsampling
 from ML_components import network_receiver, network_sender_receiver
 from scipy.stats import norm
-from scipy.signal import lfilter
+from scipy.signal import lfilter, filtfilt
 from filters import butter_lowpass
 
 class Comms_System:
@@ -39,9 +39,9 @@ class Comms_System:
 
     def rrcos(self, beta, v=False):
         Ts_ = self.m
-        t = np.arange(-4 * Ts_, 4 * Ts_ + 1)  # remember it's not inclusive of final number
         h = rrcosfilter(N=8 * Ts_, alpha=beta, Ts=1, Fs=Ts_)[1]
         if v:
+            t = np.arange(-4 * Ts_, 4 * Ts_ + 1)  # remember it's not inclusive of final number
             plt.figure(figsize=(13, 8))
             plt.plot(t, h)
             plt.title('Root Raised Cosine Filter', fontsize=24)
@@ -127,7 +127,7 @@ class Comms_System:
             if v: print(sigma)
             if rx_cutoff is not None:
                 b, a = butter_lowpass(rx_cutoff, self.m, 10)
-                Tx = lfilter(b, a, Tx)
+                Tx = filtfilt(b, a, Tx)
             Tx = Tx / np.sqrt(np.mean(np.square(Tx)))  # normalize signal
             Tx = Tx + np.random.normal(0.0, sigma, Tx.shape)
             decisions = network_receiver(Tx, self.symbol_set, model=model)
