@@ -28,14 +28,17 @@ def network_sender_receiver(upsampled, classes, sigma=0.89, cutoff_freq=2, path=
     else:
         NN_tx, NN_rx = models
 
-    if lowpass == 'butter':
-        b, a = butter_lowpass(cutoff_freq, 8, 10)
+    if lowpass == 'butterfiltfilt' or lowpass=='butterlfilter':
+        b, a = butter_lowpass(cutoff_freq, 8, 10) # 8 er sample rate. Skal ændres, hvis vi bruger en anden sample rate
         b = torch.tensor(b, requires_grad=True).float()
         a = torch.tensor(a, requires_grad=True).float()
 
     Tx = NN_tx(upsampled)
 
-    if lowpass == 'butter':
+    if lowpass == 'butterfiltfilt':
+        # Send filtered signal through lowpass filter
+        Tx = torchaudio.functional.filtfilt(Tx, a, b)
+    elif lowpass == 'butterlfilter':
         # Send filtered signal through lowpass filter
         Tx = torchaudio.functional.lfilter(Tx, a, b)
     elif lowpass == 'ideal':

@@ -5,7 +5,7 @@ from ML_components import ML_decision_making, ML_downsampling
 from ML_components import network_receiver, network_sender_receiver
 from scipy.stats import norm
 from scipy.signal import lfilter, filtfilt
-from filters import butter_lowpass
+from filters import butter_lowpass, ideal_lowpass
 
 class Comms_System:
 
@@ -128,6 +128,7 @@ class Comms_System:
             if rx_cutoff is not None:
                 b, a = butter_lowpass(rx_cutoff, self.m, 10)
                 Tx = filtfilt(b, a, Tx)
+                #Tx = ideal_lowpass(Tx, rx_cutoff, self.m)
             Tx = Tx / np.sqrt(np.mean(np.square(Tx)))  # normalize signal
             Tx = Tx + np.random.normal(0.0, sigma, Tx.shape)
             decisions = network_receiver(Tx, self.symbol_set, model=model)
@@ -200,11 +201,11 @@ class Comms_System:
 
 
 def SNR_plot(num_symbols=10000, rx_model=None, joint_models=None, joint_cutoff=0.675, rx_cutoff=None, all_components=False,
-             lowpass='butter', range=[0, 19]):
+             lowpass='butter', range=[0, 19], num_SNRs=50):
     symbol_set = [3, 1, -1, -3]  # all symbols that we use
     symbol_seq = np.random.choice(symbol_set, num_symbols, replace=True)
     CS = Comms_System(symbol_set=symbol_set, symbol_seq=symbol_seq, num_samples=8, beta=0.35)
-    SNRdbs = np.linspace(range[0], range[1], 50) # 0, 19, 50
+    SNRdbs = np.linspace(range[0], range[1], num_SNRs) # 0, 19, 50
 
     euclid_error_rates = np.zeros(len(SNRdbs))
     NN_error_rates = np.zeros(len(SNRdbs))

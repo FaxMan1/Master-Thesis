@@ -6,6 +6,7 @@ import copy
 import torch
 from filters import butter_lowpass, ideal_lowpass
 import torchaudio
+import random
 
 
 class DE:
@@ -47,9 +48,9 @@ class DE:
     def load_model(self, fname, path='../Joint_Models/'):
         return torch.load(path+fname)
 
-    def NN_obj(self, agent):
+    def NN_obj(self, agent, x_chosen, y_chosen):
         NN_tx, NN_rx = agent
-        Tx = NN_tx(self.X)
+        Tx = NN_tx(self.X[:,:,x_chosen])
 
         if self.lowpass == 'butter':
             Tx_low = torchaudio.functional.filtfilt(Tx, self.a, self.b)
@@ -63,7 +64,7 @@ class DE:
         Tx_low = Tx_low + torch.normal(0.0, self.sigma, Tx_low.shape, device=self.device)
         received = NN_rx(Tx_low)[0].T
 
-        return self.obj(received, self.y)
+        return self.obj(received, self.y[y_chosen])
 
     def mutation(self, nets):
 
@@ -81,54 +82,73 @@ class DE:
 
         pass
 
-    def evolution(self, num_epochs, verbose=False, print_epoch=1000):
+    def evolve(self, x_chosen, y_chosen):
+
+        for j, x in enumerate(self.pop):
+
+            choice = np.random.choice(np.delete(np.arange(self.N), j), 3, replace=False)
+            a, b, c = itemgetter(*choice)(self.pop)
+
+            # Mutation
+            self.mutation([self.testNN[0], a[0], b[0], c[0]])  # for Tx
+            self.mutation([self.testNN[1], a[1], b[1], c[1]])  # for Rx
+
+            # Crossover
+            self.crossover(self.testNN[0], x[0])  # Tx
+            self.crossover(self.testNN[1], x[1])  # Rx
+
+            # Selection
+            obj_u = self.NN_obj(self.testNN, x_chosen, y_chosen)
+            if obj_u < self.NN_obj(x, x_chosen, y_chosen):
+                self.pop[j] = copy.deepcopy(self.testNN)
+                self.obj_all[j] = obj_u
+
+    def evolution(self, num_epochs, batch_size, verbose=False, print_epoch=1000, print_mini=False, k_print=10):
+        idx_x = np.arange(self.X.shape[2])
+        idx_y = np.arange(self.y.shape[0])
+        iterations_per_epoch = self.X.shape[2] // batch_size
+
         # evaluate the initialized population with the objective function. Only RX agent is evaluated
-        obj_all = torch.Tensor([self.NN_obj(agent) for agent in self.pop])
+        self.obj_all = torch.Tensor([self.NN_obj(agent, idx_x, idx_y) for agent in self.pop])
 
         # find the best agent within the initial population
-        self.best_agent = self.pop[torch.argmin(obj_all)]
+        self.best_agent = self.pop[torch.argmin(self.obj_all)]
 
-        best_obj = torch.min(obj_all)
+        best_obj = torch.min(self.obj_all)
         prev_obj = best_obj
 
         self.best_objs = np.zeros(num_epochs + 1)
         self.best_objs[0] = best_obj
 
         for i in range(num_epochs):
-            for j, x in enumerate(self.pop):
+            idx_y = np.arange(self.y.shape[0])
+            for k in range(iterations_per_epoch):
+                y_chosen = np.random.choice(idx_y.shape[0], 1, replace=False)
+                y_chosen = np.arange(y_chosen, y_chosen + batch_size)
+                y_chosen = y_chosen[y_chosen < self.y.shape[0]]
+                y_start, y_end = y_chosen[0], y_chosen[-1]
+                x_chosen = np.arange(y_start * 8, (y_end + 1) * 8)
+                x_chosen = x_chosen[x_chosen < self.X.shape[2]]
+                idx_y = np.array([x for x in idx_y if x not in y_chosen]) # removes the already selected elements. Corresponds to replace=False
+                self.evolve(x_chosen, y_chosen)
 
-                choice = np.random.choice(np.delete(np.arange(self.N), j), 3, replace=False)
-                a, b, c = itemgetter(*choice)(self.pop)
+                # update the current best objective function value
+                best_obj = torch.min(self.obj_all)
+                self.best_objs[i + 1] = best_obj
+                if print_mini and k % k_print == 0:
+                    print('%d: cost= %.5f' % (i, best_obj))
 
-                # Mutation
-                self.mutation([self.testNN[0], a[0], b[0], c[0]]) # for Tx
-                self.mutation([self.testNN[1], a[1], b[1], c[1]]) # for Rx
-
-                # Crossover
-                self.crossover(self.testNN[0], x[0]) # Tx
-                self.crossover(self.testNN[1], x[1]) # Rx
-
-                # Selection
-                obj_u = self.NN_obj(self.testNN)
-                if obj_u < self.NN_obj(x):
-                    self.pop[j] = copy.deepcopy(self.testNN)
-                    obj_all[j] = obj_u
-
-            # update the current best objective function value
-            best_obj = torch.min(obj_all)
-            self.best_objs[i + 1] = best_obj
-
-            if best_obj < prev_obj:
-                # update best agent
-                self.best_agent = self.pop[torch.argmin(obj_all)]
-                # update previous solution to use for next iteration
-                prev_obj = best_obj
+                if best_obj < prev_obj:
+                    # update best agent
+                    self.best_agent = self.pop[torch.argmin(self.obj_all)]
+                    # update previous solution to use for next iteration
+                    prev_obj = best_obj
 
 
             if verbose and i % print_epoch == 0:
                 # report progress at each iteration
                 print('%d: cost= %.5f' % (i, best_obj))
-                #print('%d: acc= %.5f' % (i, self.accuracy(self.best_agent(self.X), self.y)))
+                #print('%d: acc= %.5f' % (i, self.accuracy(self.best_agent[1](self.X), self.y)))
                 #plt.plot(list(self.best_agent[0].parameters())[0].cpu().detach()[0][0]) # Tx network parameters
                 #plt.plot(list(self.best_agent[1].parameters())[0].cpu().detach()[0][0]) # Rx network parameters
                 plt.show()
