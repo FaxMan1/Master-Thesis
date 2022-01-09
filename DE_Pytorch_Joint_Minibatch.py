@@ -11,8 +11,8 @@ import random
 
 class DE:
 
-    def __init__(self, objective_function, pop_fun, X, y, pop_size=50,F=0.5, cr=0.5, use_cuda=False,
-                 lowpass='butter', cutoff_freq=0.675, sample_rate=8, SNRdb=10, start_agent=None):
+    def __init__(self, objective_function, pop_fun, X, y, Xtest=None, ytest=None, pop_size=50,F=0.5, cr=0.5,
+                 use_cuda=False, lowpass='butter', cutoff_freq=0.675, sample_rate=8, SNRdb=10, start_agent=None):
         if use_cuda and torch.cuda.is_available:
             self.device = torch.device('cuda')
             print('Using GPU')
@@ -34,7 +34,10 @@ class DE:
         self.sigma = np.sqrt(sample_rate / SNR)
         if start_agent is not None:
             self.pop[0] = copy.deepcopy(start_agent)
-
+        if Xtest is not None and ytest is not None:
+            self.Xtest = Xtest.to(self.device)
+            self.ytest = ytest.long().to(self.device)
+            self.testcost = True
         if self.lowpass == 'butter':
             self.b, self.a = butter_lowpass(cutoff_freq, sample_rate, 10)
             self.b = torch.tensor(self.b).float().to(self.device)
@@ -57,9 +60,16 @@ class DE:
         return x_chosen
 
 
-    def NN_obj(self, agent, x_chosen, y_chosen, noise=None):
+    def NN_obj(self, agent, x_chosen, y_chosen, noise=None, Xtest=None, ytest=None):
         NN_tx, NN_rx = agent
-        Tx = NN_tx(self.X[:,:,x_chosen])
+        if Xtest is not None:
+            X = Xtest
+            y = ytest
+        else:
+            X = self.X
+            y = self.y
+
+        Tx = NN_tx(X[:,:,x_chosen])
 
         if self.lowpass == 'butter':
             Tx_low = torchaudio.functional.filtfilt(Tx, self.a, self.b)
@@ -76,7 +86,7 @@ class DE:
             Tx_low = Tx_low + torch.normal(0.0, self.sigma, Tx_low.shape, device=self.device)
         received = NN_rx(Tx_low)[0].T
 
-        return self.obj(received, self.y[y_chosen])
+        return self.obj(received, y[y_chosen])
 
     def mutation(self, nets):
 
@@ -137,6 +147,11 @@ class DE:
         self.best_objs = np.zeros(num_epochs + 1)
         self.best_objs[0] = best_obj
 
+        if self.testcost:
+            self.best_test_objs = np.zeros(num_epochs + 1)
+            self.best_test_objs[0] = self.NN_obj(self.best_agent, idx_x, idx_y, Xtest=self.Xtest, ytest=self.ytest)
+
+
         for i in range(num_epochs):
             #idx_y = torch.arange(self.y.shape[0], device=self.device).float()
             np.random.shuffle(y_chosens)
@@ -156,10 +171,13 @@ class DE:
                     # update previous solution to use for next iteration
                     prev_obj = best_obj
 
+            if self.testcost:
+                self.best_test_objs[i+1] = self.NN_obj(self.best_agent, idx_x, idx_y, Xtest=self.Xtest, ytest=self.ytest)
 
             if verbose and i % print_epoch == 0:
                 # report progress at each iteration
                 print('%d: cost= %.5f' % (i, best_obj))
+                print('%d: testcost= %.5f' % (i, self.best_test_objs[i + 1]))
                 #print('%d: acc= %.5f' % (i, self.accuracy(self.best_agent[1](self.X), self.y)))
                 #plt.plot(list(self.best_agent[0].parameters())[0].cpu().detach()[0][0]) # Tx network parameters
                 #plt.plot(list(self.best_agent[1].parameters())[0].cpu().detach()[0][0]) # Rx network parameters
@@ -172,17 +190,18 @@ class DE:
         if agent is None:
             agent = self.best_agent
             plt.figure(figsize=(13, 8))
-            plt.plot(range(len(self.best_objs)), self.best_objs)
+            plt.plot(range(len(self.best_objs)), self.best_objs, label='Train')
+            plt.plot(range(len(self.best_test_objs)), self.best_test_objs, label='Test')
             plt.title('Training Graph', fontsize=24)
             plt.xlabel('Iterations', fontsize=20)
             plt.ylabel('Cost', fontsize=20)
-            plt.legend(['Train', 'Test'], fontsize=14)
+            plt.legend(fontsize=14)
             plt.show()
 
         if plot_function is not None:
             plot_function(agent, self.Xtest, self.ytest, title=title, savefig=False)
 
-        print(f"Best agent is {agent} with a train cost of {np.round(self.NN_obj(agent).cpu().detach(), 5)}.")
+        #print(f"Best agent is {agent} with a train cost of {np.round(self.NN_obj(agent,).cpu().detach(), 5)}.")
 
         # print(f"Worst initialization was {self.initial_worst_agent} with a cost of \
         # {np.round(self.obj(self.initial_worst_agent), 2)}.")
