@@ -48,7 +48,16 @@ class DE:
     def load_model(self, fname, path='../Joint_Models/'):
         return torch.load(path+fname)
 
-    def NN_obj(self, agent, x_chosen, y_chosen):
+
+    def get_x_chosen(self, y_chosen):
+        y_chosen = y_chosen[y_chosen < self.y.shape[0]]
+        y_start, y_end = y_chosen[0], y_chosen[-1]
+        x_chosen = torch.arange(y_start * 8, (y_end + 1) * 8, device=self.device)
+        x_chosen = x_chosen[x_chosen < self.X.shape[2]]
+        return x_chosen
+
+
+    def NN_obj(self, agent, x_chosen, y_chosen, noise=None):
         NN_tx, NN_rx = agent
         Tx = NN_tx(self.X[:,:,x_chosen])
 
@@ -61,7 +70,10 @@ class DE:
             Tx_low = torch.fft.irfft(Tx_freq, n=Tx.shape[2])
 
         Tx_low = Tx_low / torch.sqrt(torch.mean(torch.square(Tx_low)))  # normalize
-        Tx_low = Tx_low + torch.normal(0.0, self.sigma, Tx_low.shape, device=self.device)
+        if noise is not None:
+            Tx_low = Tx_low + self.noise_signal
+        else:
+            Tx_low = Tx_low + torch.normal(0.0, self.sigma, Tx_low.shape, device=self.device)
         received = NN_rx(Tx_low)[0].T
 
         return self.obj(received, self.y[y_chosen])
@@ -98,15 +110,20 @@ class DE:
             self.crossover(self.testNN[1], x[1])  # Rx
 
             # Selection
-            obj_u = self.NN_obj(self.testNN, x_chosen, y_chosen)
-            if obj_u < self.NN_obj(x, x_chosen, y_chosen):
+            obj_u = self.NN_obj(self.testNN, x_chosen, y_chosen, noise=self.noise_signal)
+            if obj_u < self.NN_obj(x, x_chosen, y_chosen, noise=self.noise_signal):
                 self.pop[j] = copy.deepcopy(self.testNN)
                 self.obj_all[j] = obj_u
 
     def evolution(self, num_epochs, batch_size, verbose=False, print_epoch=1000, print_mini=False, k_print=10):
         idx_x = np.arange(self.X.shape[2])
         idx_y = np.arange(self.y.shape[0])
-        iterations_per_epoch = self.X.shape[2] // batch_size
+        iterations_per_epoch = self.y.shape[0] // batch_size
+        self.noise_signal = torch.normal(0.0, self.sigma, torch.Tensor(batch_size*8+63).shape, device=self.device)
+
+        y_chosens = []
+        for k in range(iterations_per_epoch):
+            y_chosens.append(torch.arange(k * batch_size, (k + 1) * batch_size, device=self.device))
 
         # evaluate the initialized population with the objective function. Only RX agent is evaluated
         self.obj_all = torch.Tensor([self.NN_obj(agent, idx_x, idx_y) for agent in self.pop])
@@ -121,16 +138,11 @@ class DE:
         self.best_objs[0] = best_obj
 
         for i in range(num_epochs):
-            idx_y = np.arange(self.y.shape[0])
+            #idx_y = torch.arange(self.y.shape[0], device=self.device).float()
+            np.random.shuffle(y_chosens)
             for k in range(iterations_per_epoch):
-                y_chosen = np.random.choice(idx_y.shape[0], 1, replace=False)
-                y_chosen = np.arange(y_chosen, y_chosen + batch_size)
-                y_chosen = y_chosen[y_chosen < self.y.shape[0]]
-                y_start, y_end = y_chosen[0], y_chosen[-1]
-                x_chosen = np.arange(y_start * 8, (y_end + 1) * 8)
-                x_chosen = x_chosen[x_chosen < self.X.shape[2]]
-                idx_y = np.array([x for x in idx_y if x not in y_chosen]) # removes the already selected elements. Corresponds to replace=False
-                self.evolve(x_chosen, y_chosen)
+                x_chosen = self.get_x_chosen(y_chosens[k])
+                self.evolve(x_chosen, y_chosens[k])
 
                 # update the current best objective function value
                 best_obj = torch.min(self.obj_all)
