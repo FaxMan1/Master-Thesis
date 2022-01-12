@@ -12,7 +12,8 @@ import random
 class DE:
 
     def __init__(self, objective_function, pop_fun, X, y, Xtest=None, ytest=None, pop_size=50,F=0.5, cr=0.5,
-                 use_cuda=False, lowpass='butter', cutoff_freq=0.675, sample_rate=8, SNRdb=10, start_agent=None):
+                 use_cuda=False, lowpass='butter', cutoff_freq=0.675, sample_rate=8, SNRdb=10, start_agent=None,
+                 noise='constant'):
         if use_cuda and torch.cuda.is_available:
             self.device = torch.device('cuda')
             print('Using GPU')
@@ -32,6 +33,7 @@ class DE:
         self.sample_rate = sample_rate
         SNR = 10 ** (SNRdb / 10)
         self.sigma = np.sqrt(sample_rate / SNR)
+        self.noise = noise
         if start_agent is not None:
             self.pop[0] = copy.deepcopy(start_agent)
         if Xtest is not None and ytest is not None:
@@ -60,7 +62,7 @@ class DE:
         return x_chosen
 
 
-    def NN_obj(self, agent, x_chosen, y_chosen, noise=None, Xtest=None, ytest=None):
+    def NN_obj(self, agent, x_chosen, y_chosen, noise='variable', Xtest=None, ytest=None):
         NN_tx, NN_rx = agent
         if Xtest is not None:
             X = Xtest
@@ -80,9 +82,9 @@ class DE:
             Tx_low = torch.fft.irfft(Tx_freq, n=Tx.shape[2])
 
         Tx_low = Tx_low / torch.sqrt(torch.mean(torch.square(Tx_low)))  # normalize
-        if noise is not None:
+        if noise == 'constant':
             Tx_low = Tx_low + self.noise_signal
-        else:
+        elif noise == 'variable':
             Tx_low = Tx_low + torch.normal(0.0, self.sigma, Tx_low.shape, device=self.device)
         received = NN_rx(Tx_low)[0].T
 
@@ -120,12 +122,12 @@ class DE:
             self.crossover(self.testNN[1], x[1])  # Rx
 
             # Selection
-            obj_u = self.NN_obj(self.testNN, x_chosen, y_chosen, noise=self.noise_signal)
-            if obj_u < self.NN_obj(x, x_chosen, y_chosen, noise=self.noise_signal):
+            obj_u = self.NN_obj(self.testNN, x_chosen, y_chosen, noise=self.noise)
+            if obj_u < self.NN_obj(x, x_chosen, y_chosen, noise=self.noise):
                 self.pop[j] = copy.deepcopy(self.testNN)
                 self.obj_all[j] = obj_u
 
-    def evolution(self, num_epochs, batch_size, verbose=False, print_epoch=1000, print_mini=False, k_print=10):
+    def evolution(self, num_epochs, batch_size, verbose=False, print_epoch=1000, print_mini=False, k_print=10, noise='constant'):
         idx_x = np.arange(self.X.shape[2])
         idx_y = np.arange(self.y.shape[0])
         iterations_per_epoch = self.y.shape[0] // batch_size

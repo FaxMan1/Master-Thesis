@@ -412,3 +412,30 @@ for i, SNRdb in enumerate(SNRdbs):
 
         return received_symbols'''
 
+idx_y = np.arange(self.y.shape[0])
+y_chosen = np.random.choice(idx_y.shape[0], 1, replace=False)
+y_chosen = np.arange(y_chosen, y_chosen + batch_size)
+y_chosen = y_chosen[y_chosen < self.y.shape[0]]
+y_start, y_end = y_chosen[0], y_chosen[-1]
+x_chosen = np.arange(y_start * 8, (y_end + 1) * 8)
+x_chosen = x_chosen[x_chosen < self.X.shape[2]]
+idx_y = np.array(
+    [x for x in idx_y if x not in y_chosen])  # removes the already selected elements. Corresponds to replace=False
+self.evolve(x_chosen, y_chosen)
+
+
+def get_minibatch(self, idx_y, do_not_replace=True):
+    y_chosen = torch.multinomial(idx_y, 1, replacement=False).item()
+    y_chosen = torch.arange(y_chosen, y_chosen + 200, device=self.device)
+    y_chosen = y_chosen[y_chosen < self.y.shape[0]]
+    y_start, y_end = y_chosen[0], y_chosen[-1]
+    x_chosen = torch.arange(y_start * 8, (y_end + 1) * 8, device=self.device)
+    x_chosen = x_chosen[x_chosen < self.X.shape[2]]
+    # print(x_chosen.is_cuda)
+    # print(y_chosen.is_cuda)
+    if do_not_replace:
+        idx_y = torch.tensor([x for x in idx_y if x not in y_chosen], device=self.device)
+        return x_chosen, y_chosen, idx_y
+    else:
+        return x_chosen, y_chosen
+
