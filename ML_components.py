@@ -23,24 +23,21 @@ def network_sender_receiver(upsampled, classes, sigma=0.89, cutoff_freq=2, path=
     upsampled = torch.Tensor(upsampled).view(1, 1, -1)
 
     if models is None:
-        NN_tx = torch.load(path + 'SenderButter0.675')
-        NN_rx = torch.load(path + 'ReceiverButter0.675')
+        NN_tx = torch.load(path + 'DE_SenderButter0675_Best')
+        NN_rx = torch.load(path + 'DE_ReceiverButter0675_Best')
     else:
         NN_tx, NN_rx = models
 
-    if lowpass == 'butterfiltfilt' or lowpass=='butterlfilter':
+    if lowpass == 'butter':
         b, a = butter_lowpass(cutoff_freq, 8, 10) # 8 er sample rate. Skal ændres, hvis vi bruger en anden sample rate
         b = torch.tensor(b, requires_grad=True).float()
         a = torch.tensor(a, requires_grad=True).float()
 
     Tx = NN_tx(upsampled)
 
-    if lowpass == 'butterfiltfilt':
+    if lowpass == 'butter':
         # Send filtered signal through lowpass filter
         Tx = torchaudio.functional.filtfilt(Tx, a, b)
-    elif lowpass == 'butterlfilter':
-        # Send filtered signal through lowpass filter
-        Tx = torchaudio.functional.lfilter(Tx, a, b)
     elif lowpass == 'ideal':
         Tx_freq = torch.fft.rfft(Tx)
         xf = torch.fft.rfftfreq(Tx.shape[2], 1 / 8)
@@ -91,8 +88,8 @@ def ML_downsampling(blocks, classes, model=None):
     if model is not None:
         return classes[model.feedforward(X).argmax(axis=1)]
 
-    w, b, sizes = load_params('../Weights/block_decision_making_weights.npz',
-                             '../Weights/block_decision_making_biases.npz')
+    w, b, sizes = load_params('../Weights/block_decision_making_weights2.npz',
+                             '../Weights/block_decision_making_biases2.npz')
     best_agent = NeuralNetwork(sizes, startweights=w, startbiases=b,
                               type='classification', afunc='relu')
 
